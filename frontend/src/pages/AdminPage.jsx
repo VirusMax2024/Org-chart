@@ -775,7 +775,7 @@ export default function AdminPage() {
                       rows={2}
                       value={settings.header_title}
                       onChange={(e) => setSettings({ ...settings, header_title: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl text-sm text-white bg-black/30 border border-white/10 outline-none focus:border-blue-500 font-mono text-xs"
+                      className="w-full px-4 py-2 rounded-xl text-white bg-black/30 border border-white/10 outline-none focus:border-blue-500 font-mono text-xs"
                     />
                   </div>
 
@@ -785,7 +785,7 @@ export default function AdminPage() {
                       rows={2}
                       value={settings.header_subtitle}
                       onChange={(e) => setSettings({ ...settings, header_subtitle: e.target.value })}
-                      className="w-full px-4 py-2 rounded-xl text-sm text-white bg-black/30 border border-white/10 outline-none focus:border-blue-500 font-mono text-xs"
+                      className="w-full px-4 py-2 rounded-xl text-white bg-black/30 border border-white/10 outline-none focus:border-blue-500 font-mono text-xs"
                     />
                   </div>
                 </div>
