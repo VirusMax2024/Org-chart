@@ -1,0 +1,16 @@
+{
+  "name": "org-chart-app",
+  "version": "1.0.0",
+  "description": "Full-Stack Org Chart App — React + Express + Aiven PostgreSQL",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"BACKEND,FRONTEND\" --prefix-colors \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "install:all": "npm install && npm install --prefix frontend && npm install --prefix backend",
+    "db:init": "npm run db:init --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

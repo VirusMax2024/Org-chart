@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment variables & secrets (Security Protection)
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# Local Databases
+*.db
+*.sqlite
+*.sqlite3
+backend/orgchart.db
+
+# Build outputs
+dist/
+frontend/dist/
+build/
+
+# Uploaded media (keep folder structure if needed)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# System & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+npm-debug.log*
