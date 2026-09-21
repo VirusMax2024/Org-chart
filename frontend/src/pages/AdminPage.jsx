@@ -8,6 +8,8 @@ import {
   Maximize2, Image, CheckCircle, AlertCircle, ChevronUp, ChevronDown, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import EmployeeForm from '../components/EmployeeForm';
 import OrgChart from '../components/OrgChart';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee, saveLayout, resetLayout } from '../api/employeeApi';
@@ -16,6 +18,7 @@ import { getSettings, updateSettings } from '../api/settingsApi';
 
 export default function AdminPage() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation(); // แปลภาษา
   const navigate = useNavigate();
 
   // Tab State: 'departments' | 'employees' | 'editor' | 'settings'
@@ -336,10 +339,10 @@ export default function AdminPage() {
         <div className="flex items-center gap-5">
           <Link
             to="/"
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 min-w-[105px] text-slate-400 hover:text-white transition-colors text-sm font-medium select-none"
           >
             <ArrowLeft size={16} />
-            <span>หน้าผังองค์กร</span>
+            <span>{t('back_to_chart')}</span>
           </Link>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex items-center gap-2.5">
@@ -358,9 +361,11 @@ export default function AdminPage() {
 
         {/* User Info & Actions */}
         <div className="flex items-center gap-4">
+          {/* Language Switcher */}
+          <LanguageSwitcher />
           <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>แอดมิน: <strong className="text-white">{user?.username || 'admin'}</strong></span>
+            <span>{t('logged_in_as')}: <strong className="text-white">{user?.username || 'admin'}</strong></span>
           </div>
 
           <button
@@ -368,10 +373,10 @@ export default function AdminPage() {
               logout();
               navigate('/admin/login');
             }}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-all"
+            className="flex items-center justify-center gap-1.5 min-w-[105px] px-3.5 py-1.5 rounded-xl text-xs font-semibold text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-all cursor-pointer select-none"
           >
             <LogOut size={14} />
-            <span>ออกจากระบบ</span>
+            <span>{t('logout')}</span>
           </button>
         </div>
       </header>
@@ -381,10 +386,10 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <nav className="flex gap-2">
             {[
-              { id: 'departments', label: 'แผนก (Departments)', icon: Building2, count: departments.length },
-              { id: 'employees',   label: 'พนักงาน (Employees)',   icon: Users,     count: employees.length },
-              { id: 'editor',      label: 'จัดผังลากวาง (Canvas Editor)', icon: LayoutDashboard, badge: hasUnsavedChanges ? '● มีการแก้ไข' : null },
-              { id: 'settings',    label: 'ตั้งค่าแบรนด์ (Site Settings)', icon: SettingsIcon },
+              { id: 'departments', label: t('tab_departments'), icon: Building2, count: departments.length },
+              { id: 'employees',   label: t('tab_employees'),   icon: Users,     count: employees.length },
+              { id: 'editor',      label: t('tab_editor'), icon: LayoutDashboard, badge: hasUnsavedChanges ? t('unsaved_changes') : null },
+              { id: 'settings',    label: t('tab_settings'), icon: SettingsIcon },
             ].map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;

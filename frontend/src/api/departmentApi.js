@@ -1,8 +1,8 @@
-// api/departmentApi.js — Departments API
 import axios from 'axios';
+import { API_BASE } from './config';
 
 const api = axios.create({
-  baseURL: '/api/departments',
+  baseURL: `${API_BASE}/api/departments`,
   timeout: 15000,
 });
 

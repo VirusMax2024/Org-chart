@@ -1,10 +1,13 @@
-// pages/LoginPage.jsx — หน้าล็อกอินแอดมิน (Admin Login)
+// pages/LoginPage.jsx — หน้าล็อกอินแอดมิน (Admin Login) + i18n support
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, User, ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from '../context/LanguageContext';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
@@ -15,7 +18,7 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!username.trim() || !password) {
-      setError('กรุณากรอก Username และ Password');
+      setError(t('login_error_empty'));
       return;
     }
 
@@ -26,7 +29,7 @@ export default function LoginPage() {
       await login(username.trim(), password);
       navigate('/admin');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'เข้าสู่ระบบไม่สำเร็จ');
+      setError(err.response?.data?.message || err.message || t('login_error_fail'));
     } finally {
       setLoading(false);
     }
@@ -44,14 +47,18 @@ export default function LoginPage() {
       <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl pointer-events-none" />
 
       <div className="w-full max-w-md relative z-10 animate-fade-in">
-        {/* Back Link */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-6"
-        >
-          <ArrowLeft size={16} />
-          <span>กลับไปยังหน้าผังองค์กร</span>
-        </Link>
+        {/* Back Link + Language Switcher Row */}
+        <div className="flex items-center justify-between mb-6">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={16} />
+            <span>{t('login_back')}</span>
+          </Link>
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+        </div>
 
         {/* Login Card */}
         <div
@@ -73,8 +80,8 @@ export default function LoginPage() {
             >
               <ShieldCheck size={28} className="text-white" />
             </div>
-            <h2 className="text-2xl font-black text-white tracking-tight">Admin Portal</h2>
-            <p className="text-blue-300 text-xs mt-1">กรุณาเข้าสู่ระบบเพื่อจัดการข้อมูลองค์กร</p>
+            <h2 className="text-2xl font-black text-white tracking-tight">{t('login_title')}</h2>
+            <p className="text-blue-300 text-xs mt-1">{t('login_subtitle')}</p>
           </div>
 
           {/* Error Message */}
@@ -89,7 +96,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Username
+                {t('login_username')}
               </label>
               <div className="relative">
                 <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -107,7 +114,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                Password
+                {t('login_password')}
               </label>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -134,10 +141,10 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>กำลังตรวจสอบสิทธิ์...</span>
+                  <span>{t('login_loading')}</span>
                 </>
               ) : (
-                <span>เข้าสู่ระบบ (Login)</span>
+                <span>{t('login_submit')}</span>
               )}
             </button>
           </form>
@@ -145,7 +152,7 @@ export default function LoginPage() {
           {/* Quick Demo Credentials Reminder */}
           <div className="mt-6 pt-4 border-t border-white/10 text-center">
             <p className="text-[11px] text-slate-400">
-              💡 บัญชีเริ่มต้น: <span className="text-blue-300 font-mono font-semibold">admin</span> / รหัสผ่าน: <span className="text-blue-300 font-mono font-semibold">admin123</span>
+              {'\ud83d\udca1'} {t('login_hint')}: <span className="text-blue-300 font-mono font-semibold">admin</span> / <span className="text-blue-300 font-mono font-semibold">admin123</span>
             </p>
           </div>
         </div>

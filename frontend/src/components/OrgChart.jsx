@@ -373,7 +373,8 @@ export default function OrgChart({
   }
 
   return (
-    <div ref={flowWrapperRef} className="w-full h-full relative">
+    <>
+      <div ref={flowWrapperRef} className="w-full h-full relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -524,8 +525,9 @@ export default function OrgChart({
           </div>
         </div>
       </ReactFlow>
+      </div>
 
-      {/* ── Export Options Modal ──────────────────────────── */}
+      {/* ── Export Options Modal (อยู่นอก flowWrapperRef เพื่อไม่ให้ติดลงในภาพ Export) ── */}
       <ExportModal
         isOpen={exportModalOpen}
         onClose={() => setExportModalOpen(false)}
@@ -533,6 +535,6 @@ export default function OrgChart({
         companyName={companyName}
         reactFlowWrapperRef={flowWrapperRef}
       />
-    </div>
+    </>
   );
 }

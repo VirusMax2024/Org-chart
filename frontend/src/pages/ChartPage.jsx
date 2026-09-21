@@ -4,10 +4,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Settings, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OrgChart from '../components/OrgChart';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useTranslation } from '../context/LanguageContext';
 import { getEmployees } from '../api/employeeApi';
 import { getSettings } from '../api/settingsApi';
 
 export default function ChartPage() {
+  const { t } = useTranslation(); // แปลภาษา
   const [employees, setEmployees]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
@@ -124,29 +127,34 @@ export default function ChartPage() {
 
         {/* Right: Controls & Admin Link */}
         <div className="flex items-center gap-3">
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
           {lastUpdated && (
-            <span className="text-xs text-slate-400 hidden sm:block">
-              อัปเดตล่าสุด {lastUpdated.toLocaleTimeString()}
+            <span className="text-xs text-slate-400 hidden sm:block min-w-[170px] text-right font-medium select-none">
+              {t('chart_last_updated')} {lastUpdated.toLocaleTimeString()}
             </span>
           )}
+
           <button
             onClick={fetchData}
-            title="รีเฟรชข้อมูล"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+            title={t('refresh')}
+            className="flex items-center justify-center gap-1.5 min-w-[90px] px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer select-none"
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            <span className="hidden sm:block">รีเฟรช</span>
+            <span className="hidden sm:inline">{t('refresh')}</span>
           </button>
+
           <Link
             to="/admin"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-md"
+            className="flex items-center justify-center gap-1.5 min-w-[138px] px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-md select-none"
             style={{
               background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
               boxShadow: '0 4px 12px rgba(37,99,235,0.35)',
             }}
           >
             <Settings size={15} />
-            <span>Admin Panel</span>
+            <span>{t('admin_panel')}</span>
             <ChevronRight size={13} />
           </Link>
         </div>
@@ -157,10 +165,10 @@ export default function ChartPage() {
         <button
           onClick={() => setIsHeaderCollapsed(false)}
           className="absolute left-4 top-20 z-20 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-white shadow-2xl transition-all hover:bg-blue-600/30 hover:border-blue-400/60 border border-blue-500/30 bg-slate-900/85 backdrop-blur-md group animate-fade-in cursor-pointer"
-          title="คลิกเพื่อแสดงแผงข้อความหัวข้อ (Show Header)"
+          title={t('chart_show')}
         >
           <ChevronRight size={14} className="text-blue-400 group-hover:translate-x-0.5 transition-transform" />
-          <span>แสดงหัวข้อ</span>
+          <span>{t('chart_show')}</span>
         </button>
       )}
 
@@ -195,17 +203,17 @@ export default function ChartPage() {
             <button
               onClick={() => setIsHeaderCollapsed(true)}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-300 hover:text-white bg-blue-500/15 hover:bg-blue-500/30 border border-blue-500/30 transition-all cursor-pointer shadow-sm"
-              title="พับเก็บแผงข้อความนี้ (Collapse Header)"
+              title={t('chart_collapse')}
             >
               <ChevronLeft size={13} />
-              <span>ซ่อน</span>
+              <span>{t('chart_collapse')}</span>
             </button>
           </div>
 
           <p className="text-blue-200 text-sm leading-relaxed opacity-85">
             {employees.length > 0
-              ? `${employees.length} ${settings.header_subtitle || 'team members across your organization'}`
-              : 'ยังไม่มีข้อมูลพนักงานในระบบ'}
+              ? `${employees.length} ${settings.header_subtitle || t('chart_no_data')}`
+              : t('chart_no_data')}
           </p>
         </div>
       </div>

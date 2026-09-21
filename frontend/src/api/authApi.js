@@ -1,8 +1,8 @@
-// api/authApi.js — Authentication API
 import axios from 'axios';
+import { API_BASE } from './config';
 
 const api = axios.create({
-  baseURL: '/api/auth',
+  baseURL: `${API_BASE}/api/auth`,
   timeout: 10000,
 });
 

@@ -1,8 +1,8 @@
-// api/settingsApi.js — Site Settings & Branding API
 import axios from 'axios';
+import { API_BASE } from './config';
 
 const api = axios.create({
-  baseURL: '/api/settings',
+  baseURL: `${API_BASE}/api/settings`,
   timeout: 20000,
 });
 

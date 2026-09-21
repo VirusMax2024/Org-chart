@@ -4,8 +4,9 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import {
   X, User, Briefcase, Building2, Users, Phone, AtSign, Mail,
-  Camera, Network, Check, Search, ShieldCheck, UserCheck
+  Camera, Network, Check, Search, ShieldCheck, UserCheck, Hash, Award
 } from 'lucide-react';
+import { useTranslation } from '../context/LanguageContext';
 
 const DEPARTMENTS = ['Executive', 'Finance', 'Operations', 'Marketing', 'HR', 'IT', 'Other'];
 
@@ -20,8 +21,20 @@ const initialForm = {
   email:           '',
   avatar_url:      '',
   layout_type:     'horizontal', // 'horizontal' | 'vertical'
+  rank:            '',           // G5 | G4 | G3 | G2 | G1 | ''
+  staff_id:        '',           // รหัสพนักงาน (กำหนดเอง)
   avatarFile:      null,
 };
+
+// ระดับพนักงาน G1–G5 (G1 = สูงสุด, G5 = ต่ำสุด)
+const RANK_OPTIONS = [
+  { value: '',   labelKey: 'rank_none',  hintKey: null },
+  { value: 'G1', labelKey: 'rank_g1',   hintKey: 'rank_hint_g1' },
+  { value: 'G2', labelKey: 'rank_g2',   hintKey: 'rank_hint_g2' },
+  { value: 'G3', labelKey: 'rank_g3',   hintKey: 'rank_hint_g3' },
+  { value: 'G4', labelKey: 'rank_g4',   hintKey: 'rank_hint_g4' },
+  { value: 'G5', labelKey: 'rank_g5',   hintKey: 'rank_hint_g5' },
+];
 
 // ─── Input Field Component (Memoized) ──────────────────────────
 const Field = memo(({ label, icon: Icon, error, badge, children }) => (
@@ -47,6 +60,7 @@ const inputClass = (hasError) =>
 
 // ─── Main EmployeeForm Component ──────────────────────────────
 function EmployeeForm({ isOpen, onClose, onSubmit, editEmployee, employees = [], departments = [] }) {
+  const { t } = useTranslation(); // ใช้เพื่อแปลภาษา
   const deptList = useMemo(() => {
     return departments.length > 0
       ? departments.map(d => typeof d === 'string' ? d : d.name)
@@ -83,6 +97,8 @@ function EmployeeForm({ isOpen, onClose, onSubmit, editEmployee, employees = [],
         email:           editEmployee.email      || '',
         avatar_url:      editEmployee.avatar_url || '',
         layout_type:     editEmployee.layout_type || 'horizontal',
+        rank:            editEmployee.rank        || '',
+        staff_id:        editEmployee.staff_id    || '',
         avatarFile:      null,
       });
       setPreview(editEmployee.avatar_url || null);
@@ -173,6 +189,8 @@ function EmployeeForm({ isOpen, onClose, onSubmit, editEmployee, employees = [],
         parent_id: form.parent_id ? parseInt(form.parent_id) : null,
         subordinate_ids: direction === 'parent_of' ? form.subordinate_ids : [],
         layout_type: form.layout_type,
+        rank: form.rank || null,
+        staff_id: form.staff_id || null,
       });
       onClose();
     } catch (err) {
@@ -314,6 +332,32 @@ function EmployeeForm({ isOpen, onClose, onSubmit, editEmployee, employees = [],
                 >
                   {deptList.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
+              </Field>
+
+              {/* Rank / Grade Level (G1–G5) */}
+              <Field label={t('field_rank')} icon={Award}>
+                <select
+                  value={form.rank}
+                  onChange={e => setForm(f => ({ ...f, rank: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm text-white outline-none transition-all border border-white/10 bg-slate-900 focus:border-blue-500 cursor-pointer"
+                >
+                  {RANK_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
+                  ))}
+                </select>
+                {form.rank && (() => {
+                  const hint = RANK_OPTIONS.find(o => o.value === form.rank)?.hintKey;
+                  const hintColor = form.rank === 'G1' ? '#ff88cc'
+                    : form.rank === 'G2' ? '#7dd3fc'
+                    : form.rank === 'G3' ? '#fde047'
+                    : form.rank === 'G4' ? '#e2e8f0'
+                    : '#94a3b8';
+                  return hint ? (
+                    <p className="text-[11px] mt-1.5 font-semibold" style={{ color: hintColor }}>
+                      {t(hint)}
+                    </p>
+                  ) : null;
+                })()}
               </Field>
             </>
           )}
@@ -541,6 +585,18 @@ function EmployeeForm({ isOpen, onClose, onSubmit, editEmployee, employees = [],
           {tab === 'contact' && (
             <div className="space-y-4">
               <p className="text-slate-400 text-xs">ข้อมูลสำหรับแสดงผลบนแถบข้อมูลติดต่อของการ์ดพนักงาน (ไม่บังคับกรอก)</p>
+
+              {/* Staff ID / รหัสพนักงาน */}
+              <Field label="รหัสพนักงาน (Staff ID)" icon={Hash}>
+                <input
+                  type="text"
+                  value={form.staff_id}
+                  onChange={e => setForm(f => ({ ...f, staff_id: e.target.value }))}
+                  placeholder="เช่น EMP-001 หรือ V-2025-001"
+                  className={inputClass(false)}
+                />
+                <p className="text-[11px] text-slate-500 mt-1">รหัสประจำตัวพนักงาน (สามารถกำหนดรูปแบบเองได้)</p>
+              </Field>
 
               <Field label="เบอร์โทรศัพท์" icon={Phone}>
                 <input

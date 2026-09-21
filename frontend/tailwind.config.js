@@ -7,7 +7,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['"Nunito Sans"', '"Noto Sans Thai"', '"Noto Sans Lao"', 'system-ui', 'sans-serif'],
+        thai: ['"Noto Sans Thai"', 'sans-serif'],
+        lao: ['"Noto Sans Lao"', 'sans-serif'],
+        english: ['"Nunito Sans"', 'sans-serif'],
       },
       colors: {
         navy: {

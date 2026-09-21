@@ -8,12 +8,23 @@
     box-sizing: border-box;
   }
   body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Nunito Sans', 'Noto Sans Thai', 'Noto Sans Lao', system-ui, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #0f172a;
     color: #f8fafc;
   }
+}
+
+/* ─── Script / Language Specific Typography ─────── */
+html[lang="th"], html[data-lang="th"], body[data-lang="th"] {
+  font-family: 'Noto Sans Thai', 'Nunito Sans', sans-serif;
+}
+html[lang="lo"], html[data-lang="lo"], body[data-lang="lo"] {
+  font-family: 'Noto Sans Lao', 'Nunito Sans', sans-serif;
+}
+html[lang="en"], html[data-lang="en"], body[data-lang="en"] {
+  font-family: 'Nunito Sans', 'Noto Sans Thai', 'Noto Sans Lao', sans-serif;
 }
 
 /* ─── React Flow overrides ─────────────────────── */
@@ -79,6 +90,21 @@
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* ─── Legend Level: Prismatic Rainbow Animations ─── */
+@keyframes legendBadgePulse {
+  0%   { box-shadow: 0 0 10px rgba(255,0,128,0.7), 0 0 20px rgba(0,191,255,0.4); opacity: 1; }
+  33%  { box-shadow: 0 0 14px rgba(0,191,255,0.8), 0 0 28px rgba(168,85,247,0.5); opacity: 0.9; }
+  66%  { box-shadow: 0 0 12px rgba(168,85,247,0.7), 0 0 24px rgba(255,140,0,0.5); opacity: 1; }
+  100% { box-shadow: 0 0 10px rgba(255,0,128,0.7), 0 0 20px rgba(0,191,255,0.4); opacity: 1; }
+}
+
+@keyframes legendCardGlow {
+  0%   { box-shadow: 0 0 28px rgba(255,0,128,0.5), 0 0 50px rgba(0,191,255,0.3), 0 10px 40px rgba(0,0,0,0.75); }
+  33%  { box-shadow: 0 0 32px rgba(0,191,255,0.6), 0 0 55px rgba(168,85,247,0.35), 0 10px 40px rgba(0,0,0,0.75); }
+  66%  { box-shadow: 0 0 30px rgba(168,85,247,0.55), 0 0 50px rgba(255,140,0,0.3), 0 10px 40px rgba(0,0,0,0.75); }
+  100% { box-shadow: 0 0 28px rgba(255,0,128,0.5), 0 0 50px rgba(0,191,255,0.3), 0 10px 40px rgba(0,0,0,0.75); }
 }
 
 .animate-fade-in {

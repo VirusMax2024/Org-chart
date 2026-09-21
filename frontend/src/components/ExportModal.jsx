@@ -1,6 +1,7 @@
 // components/ExportModal.jsx — High Quality Export Dialog for Org Chart
 // รองรับการส่งออก: PNG (High-Res Image), PDF Document, JSON Data (Backup), CSV / Excel
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Download, FileImage, FileText, FileSpreadsheet, Code2, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
@@ -19,6 +20,22 @@ export default function ExportModal({
 
   const dateStr = new Date().toISOString().split('T')[0];
 
+  // ฟิลเตอร์กรอง element ที่ไม่ต้องการให้อยู่ในภาพส่งออก (Controls, MiniMap, Toolbar, Modals)
+  const exportFilter = (node) => {
+    if (node.classList) {
+      if (
+        node.classList.contains('react-flow__controls') ||
+        node.classList.contains('react-flow__minimap') ||
+        node.classList.contains('react-flow__panel') ||
+        node.classList.contains('react-flow__attribution') ||
+        node.classList.contains('export-exclude')
+      ) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   // ─── 1. EXPORT PNG ─────────────────────────────────────────────
   const handleExportPNG = async () => {
     setExportingType('png');
@@ -29,18 +46,7 @@ export default function ExportModal({
       const dataUrl = await toPng(container, {
         backgroundColor: '#0a1628',
         pixelRatio: 2, // ความละเอียดสูง คมชัดระดับ Retina Display
-        filter: (node) => {
-          if (node.classList) {
-            if (
-              node.classList.contains('react-flow__controls') ||
-              node.classList.contains('react-flow__minimap') ||
-              node.classList.contains('export-exclude')
-            ) {
-              return false;
-            }
-          }
-          return true;
-        },
+        filter: exportFilter,
       });
 
       const link = document.createElement('a');
@@ -68,18 +74,7 @@ export default function ExportModal({
       const dataUrl = await toPng(container, {
         backgroundColor: '#0a1628',
         pixelRatio: 2,
-        filter: (node) => {
-          if (node.classList) {
-            if (
-              node.classList.contains('react-flow__controls') ||
-              node.classList.contains('react-flow__minimap') ||
-              node.classList.contains('export-exclude')
-            ) {
-              return false;
-            }
-          }
-          return true;
-        },
+        filter: exportFilter,
       });
 
       // สร้าง PDF ในแนวนอน (Landscape A4)
@@ -267,9 +262,9 @@ export default function ExportModal({
     },
   ];
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+      className="export-exclude fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
       style={{ willChange: 'opacity' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
@@ -380,6 +375,7 @@ export default function ExportModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

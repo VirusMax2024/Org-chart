@@ -1,30 +1,40 @@
 // components/EmployeeCard.jsx
 // Horizontal Card Layout — Dark Charcoal Theme + Hexagonal Grid Pattern + Dynamic Border & Glow by Level
-// อัปเดต: รูปโปรไฟล์ทรงสี่เหลี่ยมมุมมนขนาดใหญ่ (Rounded Rectangle), ข้อมูลติดต่อเรียงแถวเดียว (Single-Row Flexbox)
+// อัปเดต: Legend (G1) Prismatic + Rank Badge ทุกระดับ + G1-G5 Mapping
 import React, { memo } from 'react';
 import { Phone, Mail } from 'lucide-react';
 
-// ─── 1. นิยามระดับตำแหน่ง (Level Constants) ──────────────────
+// ─── 1. นิยามระดับตำแหน่ง (Level Constants) ───────────────
 export const LEVEL_TYPES = {
-  DIAMOND:  'diamond',  // CEO สูงสุด / ประธาน (Chairman) — ขอบเพชรประกายวิบวับ Sparkling Diamond
-  GOLD:     'gold',     // ผู้บริหาร / C-Suite / CTO / รอง CEO — ขอบทองเมทัลลิก Metallic Gold
-  SILVER:   'silver',   // หัวหน้าแผนก / Manager / Lead — ขอบเงินเงา Polished Silver
-  STANDARD: 'standard', // พนักงานทั่วไป — ขอบขาว/เทาอ่อนมาตรฐาน Clean Standard
+  LEGEND:   'legend',   // G1 — ระดับสูงสุด / CEO / Chairman — Prismatic Rainbow (เหนือ Diamond)
+  DIAMOND:  'diamond',  // G2 — ผู้บริหาร / C-Suite — Sparkling Diamond
+  GOLD:     'gold',     // G3 — หัวหน้า/Manager — Metallic Gold
+  SILVER:   'silver',   // G4 — Senior Staff — Polished Silver
+  STANDARD: 'standard', // G5 — General Staff — Clean Standard
 };
 
 // ─── 2. ตรวจสอบระดับตำแหน่งอัตโนมัติ (Auto-Detection) ───────────
-export function resolveLevel({ level, role, position = '', isRoot = false }) {
+export function resolveLevel({ level, role, rank, position = '', isRoot = false }) {
+  // ── Priority 1: rank G1–G5 จากฐานข้อมูล — ค่าสำคัญที่สุด ──
+  const g = String(rank || '').trim().toUpperCase();
+  if (g === 'G1') return LEVEL_TYPES.LEGEND;   // G1 = Legend Prismatic
+  if (g === 'G2') return LEVEL_TYPES.DIAMOND;  // G2 = Diamond
+  if (g === 'G3') return LEVEL_TYPES.GOLD;     // G3 = Gold
+  if (g === 'G4') return LEVEL_TYPES.SILVER;   // G4 = Silver
+  if (g === 'G5') return LEVEL_TYPES.STANDARD; // G5 = Standard
+
+  // ── Priority 2: explicit level/role keyword ──
   const explicit = String(level || role || '').trim().toLowerCase();
-  
+  if (['legend'].includes(explicit)) return LEVEL_TYPES.LEGEND;
   if (['diamond', 'ceo', 'chairman', 'president', 'founder', 'ประธาน'].includes(explicit)) return LEVEL_TYPES.DIAMOND;
   if (['gold', 'c_suite', 'c-suite', 'executive', 'director', 'cto', 'cfo', 'cmo', 'coo', 'vp', 'ผู้บริหาร'].includes(explicit)) return LEVEL_TYPES.GOLD;
   if (['silver', 'head', 'manager', 'lead', 'supervisor', 'หัวหน้า', 'ผู้จัดการ'].includes(explicit)) return LEVEL_TYPES.SILVER;
   if (['standard', 'employee', 'staff', 'ทั่วไป'].includes(explicit)) return LEVEL_TYPES.STANDARD;
 
-  // ตรวจจับอัตโนมัติจาก isRoot หรือ Keyword ในชื่อตำแหน่ง
-  if (isRoot) return LEVEL_TYPES.DIAMOND;
+  // ── Priority 3: Auto-detect จาก isRoot หรือ Keyword ใน position ──
+  if (isRoot) return LEVEL_TYPES.LEGEND;
   const p = position.toLowerCase();
-  if (/\b(ceo|chairman|founder|president|ประธาน)\b/i.test(p)) return LEVEL_TYPES.DIAMOND;
+  if (/\b(ceo|chairman|founder|president|ประธาน)\b/i.test(p)) return LEVEL_TYPES.LEGEND;
   if (/\b(cto|cfo|cmo|coo|cio|director|vp|vice president|executive|ผู้บริหาร)\b/i.test(p)) return LEVEL_TYPES.GOLD;
   if (/\b(head|manager|lead|supervisor|หัวหน้า|ผู้จัดการ)\b/i.test(p)) return LEVEL_TYPES.SILVER;
 
@@ -33,9 +43,25 @@ export function resolveLevel({ level, role, position = '', isRoot = false }) {
 
 // ─── 3. ดีไซน์โทนสีและขอบเงาตามระดับตำแหน่ง (Level Theme Tokens) ────
 const LEVEL_STYLES = {
+  // ─── G1: LEGEND — Prismatic Rainbow / Holographic (สูงกว่า Diamond) ────────────
+  [LEVEL_TYPES.LEGEND]: {
+    label: 'Legend — Top Level',
+    tag: '🌟 Rank G1',
+    cardBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #ff0080 0%, #ff8c00 15%, #ffd700 30%, #00ff88 45%, #00bfff 60%, #a855f7 75%, #ff0080 90%, #ff8c00 100%) border-box',
+    cardGlow: '0 0 28px rgba(255, 0, 128, 0.5), 0 0 50px rgba(0, 191, 255, 0.3), 0 0 70px rgba(168, 85, 247, 0.2), 0 10px 40px rgba(0, 0, 0, 0.75)',
+    avatarBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #ff0080, #ff8c00, #ffd700, #00ff88, #00bfff, #a855f7, #ff0080) border-box',
+    avatarGlow: '0 0 22px rgba(255, 0, 128, 0.9), 0 0 38px rgba(0, 191, 255, 0.6), 0 0 55px rgba(168, 85, 247, 0.4)',
+    avatarInitialBg: 'linear-gradient(135deg, #ff0080, #ff8c00, #ffd700, #00bfff)',
+    badgeBg: 'linear-gradient(135deg, rgba(255,0,128,0.3), rgba(0,191,255,0.3), rgba(168,85,247,0.3))',
+    badgeColor: '#ffffff',
+    badgeBorder: 'rgba(255, 0, 128, 0.7)',
+    badgeShadow: '0 0 14px rgba(255,0,128,0.6), 0 0 22px rgba(0,191,255,0.4)',
+    animate: true,
+  },
+  // ─── G2: DIAMOND ────────────────────────────────────────
   [LEVEL_TYPES.DIAMOND]: {
-    label: 'CEO & Chairman',
-    tag: '💎 DIAMOND',
+    label: 'Executive & C-Suite',
+    tag: '💎 Rank G2',
     cardBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #e0f2fe 0%, #38bdf8 25%, #e879f9 50%, #f472b6 75%, #38bdf8 100%) border-box',
     cardGlow: '0 0 22px rgba(56, 189, 248, 0.45), 0 0 38px rgba(232, 121, 249, 0.28), 0 10px 30px rgba(0, 0, 0, 0.7)',
     avatarBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #e0f2fe, #38bdf8, #e879f9, #f472b6) border-box',
@@ -45,10 +71,12 @@ const LEVEL_STYLES = {
     badgeColor: '#7dd3fc',
     badgeBorder: 'rgba(56, 189, 248, 0.5)',
     badgeShadow: '0 0 10px rgba(56, 189, 248, 0.4)',
+    animate: false,
   },
+  // ─── G3: GOLD ──────────────────────────────────────────
   [LEVEL_TYPES.GOLD]: {
-    label: 'Executive & C-Suite',
-    tag: '👑 GOLD',
+    label: 'Manager & Head',
+    tag: '☀️ Rank G3',
     cardBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #d97706 0%, #fef08a 35%, #b45309 60%, #fbbf24 85%, #f59e0b 100%) border-box',
     cardGlow: '0 0 20px rgba(245, 158, 11, 0.45), 0 0 34px rgba(217, 119, 6, 0.25), 0 10px 30px rgba(0, 0, 0, 0.7)',
     avatarBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #f59e0b, #fef08a, #d97706, #fbbf24) border-box',
@@ -58,10 +86,12 @@ const LEVEL_STYLES = {
     badgeColor: '#fde047',
     badgeBorder: 'rgba(245, 158, 11, 0.5)',
     badgeShadow: '0 0 10px rgba(245, 158, 11, 0.35)',
+    animate: false,
   },
+  // ─── G4: SILVER ────────────────────────────────────────
   [LEVEL_TYPES.SILVER]: {
-    label: 'Department Head',
-    tag: '⚡ SILVER',
+    label: 'Senior Staff',
+    tag: '❄️ Rank G4',
     cardBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #64748b 0%, #ffffff 30%, #94a3b8 60%, #cbd5e1 85%, #e2e8f0 100%) border-box',
     cardGlow: '0 0 18px rgba(226, 232, 240, 0.4), 0 0 30px rgba(148, 163, 184, 0.2), 0 10px 30px rgba(0, 0, 0, 0.7)',
     avatarBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, #94a3b8, #ffffff, #64748b, #cbd5e1) border-box',
@@ -71,19 +101,21 @@ const LEVEL_STYLES = {
     badgeColor: '#e2e8f0',
     badgeBorder: 'rgba(226, 232, 240, 0.4)',
     badgeShadow: '0 0 8px rgba(226, 232, 240, 0.25)',
+    animate: false,
   },
+  // ─── G5: STANDARD ─────────────────────────────────────
   [LEVEL_TYPES.STANDARD]: {
-    label: 'Team Member',
-    tag: 'MEMBER',
+    label: 'General Staff',
+    tag: '🔥 Rank G5',
     cardBorder: 'linear-gradient(#181b24, #181b24) padding-box, linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08)) border-box',
     cardGlow: '0 8px 26px rgba(0, 0, 0, 0.55)',
     avatarBorder: '3px solid rgba(255, 255, 255, 0.9)',
     avatarGlow: '0 0 12px rgba(255, 255, 255, 0.3)',
     avatarInitialBg: 'linear-gradient(135deg, #1e293b, #334155)',
-    badgeBg: 'rgba(255, 255, 255, 0.1)',
-    badgeColor: '#94a3b8',
-    badgeBorder: 'rgba(255, 255, 255, 0.15)',
-    badgeShadow: 'none',
+    badgeBg: 'linear-gradient(135deg, rgba(249, 115, 22, 0.18), rgba(239, 68, 68, 0.18))',
+    badgeColor: '#fb923c',
+    badgeBorder: 'rgba(249, 115, 22, 0.4)',
+    badgeShadow: '0 0 8px rgba(249, 115, 22, 0.25)',
   },
 };
 
@@ -156,10 +188,11 @@ const EmployeeCard = memo((props) => {
   const variant    = props.variant    || 'node';
   const isBanner   = variant === 'banner' || variant === 'list';
 
-  // ตรวจสอบระดับตำแหน่งพนักงาน
+  // ตรวจสอบระดับตำแหน่งพนักงาน (รองรับ rank G1-G5 จาก DB)
   const currentLevel = resolveLevel({
     level: props.level || data.level,
     role:  props.role  || data.role,
+    rank:  props.rank  || data.rank,
     position,
     isRoot,
   });
@@ -199,21 +232,24 @@ const EmployeeCard = memo((props) => {
         <RightHexagons />
       </div>
 
-      {/* ─── Role Badge ชิดมุมขวาบน (ไม่ทับชื่อหรือลวดลาย) ─── */}
-      {currentLevel !== LEVEL_TYPES.STANDARD && (
-        <div
-          className="absolute top-2.5 right-3.5 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase select-none"
-          style={{
-            background: levelStyle.badgeBg,
-            color: levelStyle.badgeColor,
-            border: `1px solid ${levelStyle.badgeBorder}`,
-            boxShadow: levelStyle.badgeShadow,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <span>{levelStyle.tag}</span>
-        </div>
-      )}
+      {/* ─── Role Badge ชิดมุมขวาบน (แสดงทุกระดับ — ALL LEVELS) ─── */}
+      <div
+        className="absolute top-2.5 right-3.5 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase select-none"
+        style={{
+          background: levelStyle.badgeBg,
+          color: levelStyle.badgeColor,
+          border: `1px solid ${levelStyle.badgeBorder}`,
+          boxShadow: levelStyle.badgeShadow,
+          backdropFilter: 'blur(8px)',
+          // LEGEND level: animate gradient
+          ...(currentLevel === LEVEL_TYPES.LEGEND ? {
+            background: 'linear-gradient(135deg, rgba(255,0,128,0.35), rgba(0,191,255,0.35), rgba(168,85,247,0.35))',
+            animation: 'legendBadgePulse 2.5s ease-in-out infinite',
+          } : {}),
+        }}
+      >
+        <span>{levelStyle.tag}</span>
+      </div>
 
       {/* ─── ฝั่งซ้าย: รูปโปรไฟล์ทรงสี่เหลี่ยมมุมมนขนาดใหญ่ (ยื่นล้นออกนอกขอบซ้าย) ─── */}
       <div

@@ -71,7 +71,7 @@ router.get('/:id', async (req, res) => {
 router.post('/', upload.single('avatar'), async (req, res) => {
   // รองรับ name และ full_name (backward compat)
   const name       = req.body.name || req.body.full_name;
-  const { position, department, phone, email, social, parent_id, layout_type } = req.body;
+  const { position, department, phone, email, social, parent_id, layout_type, rank, staff_id } = req.body;
 
   // ถ้ามีไฟล์ upload ใช้ path ไฟล์, ไม่งั้นใช้ avatar_url จาก body
   let avatar_url = req.body.avatar_url || null;
@@ -88,8 +88,8 @@ router.post('/', upload.single('avatar'), async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO employees (name, position, department, phone, email, social, avatar_url, parent_id, layout_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO employees (name, position, department, phone, email, social, avatar_url, parent_id, layout_type, rank, staff_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         name,
@@ -101,6 +101,8 @@ router.post('/', upload.single('avatar'), async (req, res) => {
         avatar_url,
         parent_id ? parseInt(parent_id) : null,
         layout_type || 'horizontal',
+        rank          || null,
+        staff_id      || null,
       ]
     );
 
@@ -141,7 +143,7 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
 
     const emp  = existing.rows[0];
     const name = req.body.name || req.body.full_name;
-    const { position, department, phone, email, social, parent_id, layout_type } = req.body;
+    const { position, department, phone, email, social, parent_id, layout_type, rank, staff_id } = req.body;
 
     // ป้องกัน circular reference
     if (parent_id && parseInt(parent_id, 10) === id)
@@ -171,19 +173,23 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
            avatar_url  = $7,
            parent_id   = $8,
            layout_type = $9,
+           rank        = $10,
+           staff_id    = $11,
            updated_at  = NOW()
-       WHERE id = $10
+       WHERE id = $12
        RETURNING *`,
       [
         name       || emp.name,
         position   || emp.position,
-        department !== undefined ? (department || null)   : emp.department,
-        phone      !== undefined ? (phone      || null)   : emp.phone,
-        email      !== undefined ? (email      || null)   : emp.email,
-        social     !== undefined ? (social     || null)   : emp.social,
+        department  !== undefined ? (department  || null) : emp.department,
+        phone       !== undefined ? (phone       || null) : emp.phone,
+        email       !== undefined ? (email       || null) : emp.email,
+        social      !== undefined ? (social      || null) : emp.social,
         avatar_url,
-        parent_id  !== undefined ? (parent_id ? parseInt(parent_id) : null) : emp.parent_id,
+        parent_id   !== undefined ? (parent_id ? parseInt(parent_id) : null) : emp.parent_id,
         layout_type !== undefined ? (layout_type || 'horizontal') : (emp.layout_type || 'horizontal'),
+        rank        !== undefined ? (rank        || null) : emp.rank,
+        staff_id    !== undefined ? (staff_id    || null) : emp.staff_id,
         id,
       ]
     );

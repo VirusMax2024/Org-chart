@@ -1,7 +1,7 @@
-// api/employeeApi.js — Axios API wrapper พร้อมรองรับ FormData (file upload) และ Auth Header
 import axios from 'axios';
+import { API_BASE } from './config';
 
-const BASE_URL = '/api/employees';
+const BASE_URL = `${API_BASE}/api/employees`;
 
 const api = axios.create({
   baseURL: BASE_URL,
