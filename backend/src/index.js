@@ -19,14 +19,21 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded avatars และ assets เป็น static files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// ─── Routes ──────────────────────────────────
+// ─── Routes (รองรับทั้ง /api/* และ /* สำหรับ Vercel Serverless Rewrite) ──────
 app.use('/api/auth',        authRouter);
+app.use('/auth',            authRouter);
+
 app.use('/api/departments', departmentsRouter);
+app.use('/departments',     departmentsRouter);
+
 app.use('/api/settings',    settingsRouter);
+app.use('/settings',        settingsRouter);
+
 app.use('/api/employees',   employeesRouter);
+app.use('/employees',       employeesRouter);
 
 // Health check — ตรวจสอบ server + DB connection
-app.get('/api/health', async (req, res) => {
+app.get(['/api/health', '/health'], async (req, res) => {
   try {
     const result = await pool.query('SELECT NOW() as db_time');
     res.json({

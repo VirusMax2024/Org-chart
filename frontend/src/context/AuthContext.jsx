@@ -11,30 +11,50 @@ export function AuthProvider({ children }) {
 
   // ตรวจสอบ Token ตอนโหลดเว็บครั้งแรก
   useEffect(() => {
+    let isMounted = true;
+
+    // Safety timeout: ป้องกันการค้างหมุนนานเกิน 3.5 วินาที
+    const safetyTimer = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Auth check timed out, clearing stale session');
+        logout();
+        setLoading(false);
+      }
+    }, 3500);
+
     async function checkAuth() {
       const savedToken = localStorage.getItem('token');
       if (!savedToken) {
-        setLoading(false);
+        if (isMounted) setLoading(false);
+        clearTimeout(safetyTimer);
         return;
       }
 
       try {
         const res = await getMe();
-        if (res.success && res.user) {
-          setUser(res.user);
-          setToken(savedToken);
-        } else {
-          logout();
+        if (isMounted) {
+          if (res.success && res.user) {
+            setUser(res.user);
+            setToken(savedToken);
+          } else {
+            logout();
+          }
         }
       } catch (err) {
         console.warn('Session expired or invalid token');
-        logout();
+        if (isMounted) logout();
       } finally {
-        setLoading(false);
+        clearTimeout(safetyTimer);
+        if (isMounted) setLoading(false);
       }
     }
 
     checkAuth();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   const login = async (username, password) => {

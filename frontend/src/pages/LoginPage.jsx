@@ -7,7 +7,7 @@ import { useTranslation } from '../context/LanguageContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
 export default function LoginPage() {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
@@ -31,9 +31,9 @@ export default function LoginPage() {
     } catch (err) {
       if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
         setError(
-          lang === 'th'
+          language === 'th'
             ? 'เซิร์ฟเวอร์คลาวด์กำลังตื่นจากการหลับ (Cold Start) กรุณารอสักครู่แล้วกดเข้าสู่ระบบอีกครั้ง'
-            : lang === 'lo'
+            : language === 'lo'
             ? 'ເຊີບເວີກຳລັງເລີ່ມຕົ້ນ (Cold Start) ກະລຸນາລໍຖ້າແລ້ວກົດອີກຄັ້ງ'
             : 'Cloud server is waking up (Cold Start). Please wait a few seconds and try again......'
         );
