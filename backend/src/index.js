@@ -57,6 +57,15 @@ app.get('/', (req, res) => {
   });
 });
 
+// ─── Global Error Handler: ป้องกัน Express ส่งกลับเป็น HTML 500 ────────────
+app.use((err, req, res, next) => {
+  console.error('🔥 Global API Error:', err.message || err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+  });
+});
+
 // ─── Start Server (Local / Standalone) ──────────────────
 async function startServer() {
   try {

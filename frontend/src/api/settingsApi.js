@@ -36,7 +36,8 @@ export const updateSettings = async (formDataOrObject) => {
     payload = fd;
   }
 
-  const res = await api.put('/', payload, { headers });
+  // ยิง PUT ไปที่ /api/settings โดยไม่ใส่ trailing slash ซ้ำซ้อน
+  const res = await api.put('', payload, { headers });
   return res.data.data;
 };
 

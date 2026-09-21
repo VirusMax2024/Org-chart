@@ -22,11 +22,10 @@ const upload = multer({
 // ─────────────────────────────────────────────────────────────
 // GET /api/settings — ดึงการตั้งค่าแบรนด์และหน้าตาเว็บ
 // ─────────────────────────────────────────────────────────────
-router.get('/', async (req, res) => {
+router.get(['/', ''], async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM site_settings WHERE id = 1');
     if (result.rows.length === 0) {
-      // สร้าง default ถ้ายังไม่มี
       const created = await pool.query(`
         INSERT INTO site_settings (id, company_name, company_subtitle, header_title, header_subtitle)
         VALUES (1, 'BORCELLE', 'Organizational Structure', 'ORGANIZATIONAL\nSTRUCTURE', 'team members across your organization')
@@ -37,7 +36,7 @@ router.get('/', async (req, res) => {
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('GET /settings error:', err.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch site settings' });
+    res.status(500).json({ success: false, message: 'Failed to fetch site settings: ' + err.message });
   }
 });
 
@@ -46,12 +45,23 @@ router.get('/', async (req, res) => {
 // รองรับการอัปโหลดไฟล์ logo และ bg_image
 // ─────────────────────────────────────────────────────────────
 router.put(
-  '/',
+  ['/', ''],
   verifyToken,
-  upload.fields([
-    { name: 'logo', maxCount: 1 },
-    { name: 'bg_image', maxCount: 1 },
-  ]),
+  (req, res, next) => {
+    upload.fields([
+      { name: 'logo', maxCount: 1 },
+      { name: 'bg_image', maxCount: 1 },
+    ])(req, res, (err) => {
+      if (err) {
+        console.error('⚠️ [Multer Error in /settings]:', err.message);
+        return res.status(400).json({
+          success: false,
+          message: 'ข้อผิดพลาดในการอัปโหลดไฟล์: ' + (err.message || 'File upload error'),
+        });
+      }
+      next();
+    });
+  },
   async (req, res) => {
     try {
       const current = await pool.query('SELECT * FROM site_settings WHERE id = 1');
@@ -60,7 +70,13 @@ router.put(
       let logoUrl = cur.company_logo_url;
       if (req.files && req.files['logo'] && req.files['logo'][0]) {
         const logoFile = req.files['logo'][0];
-        logoUrl = await uploadImageToR2(logoFile.buffer, logoFile.originalname, logoFile.mimetype);
+        try {
+          logoUrl = await uploadImageToR2(logoFile.buffer, logoFile.originalname, logoFile.mimetype);
+        } catch (uploadErr) {
+          console.warn('Fallback to Base64 for logo:', uploadErr.message);
+          const mime = logoFile.mimetype || 'image/png';
+          logoUrl = `data:${mime};base64,${logoFile.buffer.toString('base64')}`;
+        }
       } else if (req.body.company_logo_url !== undefined) {
         logoUrl = req.body.company_logo_url || null;
       }
@@ -68,7 +84,13 @@ router.put(
       let bgUrl = cur.bg_image_url;
       if (req.files && req.files['bg_image'] && req.files['bg_image'][0]) {
         const bgFile = req.files['bg_image'][0];
-        bgUrl = await uploadImageToR2(bgFile.buffer, bgFile.originalname, bgFile.mimetype);
+        try {
+          bgUrl = await uploadImageToR2(bgFile.buffer, bgFile.originalname, bgFile.mimetype);
+        } catch (uploadErr) {
+          console.warn('Fallback to Base64 for bg_image:', uploadErr.message);
+          const mime = bgFile.mimetype || 'image/jpeg';
+          bgUrl = `data:${mime};base64,${bgFile.buffer.toString('base64')}`;
+        }
       } else if (req.body.bg_image_url !== undefined) {
         bgUrl = req.body.bg_image_url || null;
       }
@@ -109,7 +131,7 @@ router.put(
       });
     } catch (err) {
       console.error('PUT /settings error:', err.message);
-      res.status(500).json({ success: false, message: 'Failed to update site settings' });
+      res.status(500).json({ success: false, message: 'Failed to update site settings: ' + err.message });
     }
   }
 );

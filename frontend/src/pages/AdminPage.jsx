@@ -16,6 +16,7 @@ import OrgChart from '../components/OrgChart';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee, saveLayout, resetLayout, batchImportEmployees } from '../api/employeeApi';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departmentApi';
 import { getSettings, updateSettings } from '../api/settingsApi';
+import { compressImage } from '../utils/imageCompressor';
 import * as XLSX from 'xlsx';
 
 export default function AdminPage() {
@@ -191,11 +192,20 @@ export default function AdminPage() {
       fd.append('header_subtitle', settings.header_subtitle);
       fd.append('bg_overlay_opacity', settings.bg_overlay_opacity);
       
-      if (logoFile) fd.append('logo', logoFile);
-      else if (settings.company_logo_url) fd.append('company_logo_url', settings.company_logo_url);
+      if (logoFile) {
+        showToast('🔄 ກຳລັງປັບແຕ່ງຂະໜາດຮູບພາບ / กำลังปรับขนาดรูปภาพ...', 'info');
+        const compressedLogo = await compressImage(logoFile, 800, 0.88);
+        fd.append('logo', compressedLogo);
+      } else if (settings.company_logo_url) {
+        fd.append('company_logo_url', settings.company_logo_url);
+      }
 
-      if (bgFile) fd.append('bg_image', bgFile);
-      else if (settings.bg_image_url) fd.append('bg_image_url', settings.bg_image_url);
+      if (bgFile) {
+        const compressedBg = await compressImage(bgFile, 1920, 0.85);
+        fd.append('bg_image', compressedBg);
+      } else if (settings.bg_image_url) {
+        fd.append('bg_image_url', settings.bg_image_url);
+      }
 
       const updated = await updateSettings(fd);
       setSettings(updated);
@@ -1535,13 +1545,12 @@ export default function AdminPage() {
       {/* MODAL: IMPORT EMPLOYEES FROM CSV              */}
       {/* ───────────────────────────────────────────── */}
       {importModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fade-in">
           <div
             className="w-full max-w-2xl rounded-3xl p-6 border border-white/15 bg-slate-900 shadow-2xl space-y-5"
             style={{
-              background: 'rgba(15, 23, 42, 0.96)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.1)',
+              background: '#0f172a',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.1)',
             }}
           >
             {/* Header */}

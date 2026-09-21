@@ -58,15 +58,21 @@ async function uploadImageToR2(buffer, originalname, mimetype) {
     ContentType: mimetype || 'image/jpeg',
   });
 
-  await client.send(command);
+  try {
+    await client.send(command);
 
-  // สร้าง Public URL สำหรับรูป
-  const publicDomain = (process.env.R2_PUBLIC_DOMAIN || '').replace(/\/$/, '');
-  if (publicDomain) {
-    return `${publicDomain}/${uniqueKey}`;
+    // สร้าง Public URL สำหรับรูป
+    const publicDomain = (process.env.R2_PUBLIC_DOMAIN || '').replace(/\/$/, '');
+    if (publicDomain) {
+      return `${publicDomain}/${uniqueKey}`;
+    }
+
+    return `https://${bucketName}.r2.dev/${uniqueKey}`;
+  } catch (r2Err) {
+    console.warn('⚠️ [R2] Upload failed or rejected, falling back to Base64 in PostgreSQL:', r2Err.message);
+    const mime = mimetype || 'image/png';
+    return `data:${mime};base64,${buffer.toString('base64')}`;
   }
-
-  return `https://${bucketName}.r2.dev/${uniqueKey}`;
 }
 
 /**
