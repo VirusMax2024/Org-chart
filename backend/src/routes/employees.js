@@ -1,23 +1,14 @@
-// routes/employees.js — CRUD API พร้อม multer file upload
+// routes/employees.js — CRUD API พร้อม multer file upload และ Cloudflare R2
 const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
 const path    = require('path');
 const fs      = require('fs');
 const pool    = require('../db');
+const { uploadImageToR2, deleteImageFromR2 } = require('../services/r2Service');
 
-// ─── Multer Config: บันทึกรูปใน /uploads ─────────────────────
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename:    (req, file, cb) => {
-    const ext  = path.extname(file.originalname);
-    const name = `avatar_${Date.now()}${ext}`;
-    cb(null, name);
-  },
-});
+// ─── Multer Config: ใช้ memoryStorage เพื่อรองรับ Vercel Serverless และส่งต่อขึ้น R2 ─────
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -73,10 +64,14 @@ router.post('/', upload.single('avatar'), async (req, res) => {
   const name       = req.body.name || req.body.full_name;
   const { position, department, phone, email, social, parent_id, layout_type, rank, staff_id } = req.body;
 
-  // ถ้ามีไฟล์ upload ใช้ path ไฟล์, ไม่งั้นใช้ avatar_url จาก body
+  // ถ้ามีไฟล์ upload ส่งขึ้น Cloudflare R2, ไม่งั้นใช้ avatar_url จาก body
   let avatar_url = req.body.avatar_url || null;
   if (req.file) {
-    avatar_url = `/uploads/${req.file.filename}`;
+    try {
+      avatar_url = await uploadImageToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+    } catch (uploadErr) {
+      console.error('R2 upload error in POST:', uploadErr);
+    }
   }
 
   if (!name || !position) {
@@ -149,14 +144,20 @@ router.put('/:id', upload.single('avatar'), async (req, res) => {
     if (parent_id && parseInt(parent_id, 10) === id)
       return res.status(400).json({ success: false, message: 'Employee cannot be their own parent' });
 
-    // ถ้ามีไฟล์ใหม่ ใช้ path ใหม่ ถ้าไม่มี ใช้ค่าจาก body หรือค่าเดิม
+    // ถ้ามีไฟล์ใหม่ อัปโหลดขึ้น R2 และลบรูปเก่า
     let avatar_url = emp.avatar_url;
     if (req.file) {
-      avatar_url = `/uploads/${req.file.filename}`;
-      // ลบรูปเก่าถ้าเป็น local file
-      if (emp.avatar_url && emp.avatar_url.startsWith('/uploads/')) {
-        const oldPath = path.join(__dirname, '../../', emp.avatar_url);
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      try {
+        avatar_url = await uploadImageToR2(req.file.buffer, req.file.originalname, req.file.mimetype);
+        if (emp.avatar_url) {
+          await deleteImageFromR2(emp.avatar_url);
+          if (emp.avatar_url.startsWith('/uploads/')) {
+            const oldPath = path.join(__dirname, '../../', emp.avatar_url);
+            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+          }
+        }
+      } catch (uploadErr) {
+        console.error('R2 upload error in PUT:', uploadErr);
       }
     } else if (req.body.avatar_url !== undefined) {
       avatar_url = req.body.avatar_url || null;
@@ -248,10 +249,13 @@ router.delete('/:id', async (req, res) => {
     await pool.query('UPDATE employees SET parent_id = $1 WHERE parent_id = $2', [emp.parent_id, id]);
     await pool.query('DELETE FROM employees WHERE id = $1', [id]);
 
-    // ลบรูป local ถ้ามี
-    if (emp.avatar_url && emp.avatar_url.startsWith('/uploads/')) {
-      const filePath = path.join(__dirname, '../../', emp.avatar_url);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // ลบรูปออกจาก R2 หรือ local
+    if (emp.avatar_url) {
+      await deleteImageFromR2(emp.avatar_url);
+      if (emp.avatar_url.startsWith('/uploads/')) {
+        const filePath = path.join(__dirname, '../../', emp.avatar_url);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
 
     res.json({ success: true, message: `Employee #${id} deleted successfully` });

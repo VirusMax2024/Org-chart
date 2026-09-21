@@ -1,7 +1,7 @@
-require('dotenv').config(); // โหลด .env ก่อนทุกอย่าง
+const path    = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // โหลด .env ก่อนทุกอย่าง
 const express = require('express');
 const cors    = require('cors');
-const path    = require('path');
 const pool    = require('./db');
 const employeesRouter   = require('./routes/employees');
 const authRouter        = require('./routes/auth');
@@ -40,7 +40,17 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// ─── Start Server ─────────────────────────────
+// Root endpoint เพื่อตรวจสอบสถานะ API
+app.get('/', (req, res) => {
+  res.json({
+    status: 'online',
+    name: 'Org Chart Backend API',
+    platform: process.env.VERCEL ? 'Vercel Serverless' : 'Node.js',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// ─── Start Server (Local / Standalone) ──────────────────
 async function startServer() {
   try {
     // ทดสอบ connection กับ Aiven PostgreSQL ก่อน start
@@ -63,4 +73,10 @@ async function startServer() {
   }
 }
 
-startServer();
+// ถ้าไม่ได้รันบน Vercel (เช่น Local Dev) ให้สตาร์ท server ตามปกติ
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+// Export สำหรับ Vercel Serverless Function
+module.exports = app;
