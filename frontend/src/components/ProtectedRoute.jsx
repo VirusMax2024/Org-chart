@@ -16,12 +16,16 @@ export default function ProtectedRoute({ children }) {
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <h3 className="text-white font-bold text-base mb-1">ກຳລັງກວດສອບສິດ / กำลังตรวจสอบสิทธิ์...</h3>
           <p className="text-slate-400 text-xs mb-5">ກະລຸນາລໍຖ້າສັກຄູ່ / กรุณารอสักครู่</p>
-          <a
-            href="/admin/login"
-            className="inline-block px-4 py-2 rounded-xl text-xs font-semibold text-blue-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              window.location.href = '/admin/login';
+            }}
+            className="inline-block px-4 py-2.5 rounded-xl text-xs font-semibold text-blue-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all cursor-pointer shadow-sm"
           >
             ໄປໜ້າເຂົ້າສູ່ລະບົບ / ไปหน้าเข้าสู่ระบบ (Login) →
-          </a>
+          </button>
         </div>
       </div>
     );

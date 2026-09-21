@@ -12,8 +12,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState('');
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate  = useNavigate();
+
+  // ล้าง Token เก่าที่อาจจะค้างอยู่ทันทีที่เข้าหน้า Login
+  useEffect(() => {
+    logout();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
