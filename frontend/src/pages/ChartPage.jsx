@@ -65,7 +65,7 @@ export default function ChartPage() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // ปิด Dropdown เมื่อคลิกนอกพื้นที่
+  // ─── ปิด Dropdown เมื่อคลิกนอกพื้นที่ ───
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (deptDropdownRef.current && !deptDropdownRef.current.contains(e.target)) {
@@ -75,6 +75,23 @@ export default function ChartPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // ─── ซิงก์ชื่อแท็บเบราว์เซอร์และ Favicon ตามการตั้งค่าบริษัท (Dynamic Title & Favicon) ───
+  useEffect(() => {
+    if (settings?.company_name) {
+      const sub = settings.company_subtitle ? ` — ${settings.company_subtitle}` : '';
+      document.title = `${settings.company_name}${sub}`;
+    }
+    if (settings?.company_logo_url) {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = settings.company_logo_url;
+    }
+  }, [settings?.company_name, settings?.company_subtitle, settings?.company_logo_url]);
 
   // รวมรายชื่อแผนกทั้งหมดจาก API และจากพนักงาน
   const allDepartmentOptions = useMemo(() => {
@@ -500,43 +517,6 @@ export default function ChartPage() {
           isEditor={false}
           companyName={settings.company_name}
         />
-
-        {/* ─── Empty State เมื่อแผนกที่เลือกยังไม่มีข้อมูลพนักงาน ─── */}
-        {selectedDept !== 'all' && filteredEmployees.length === 0 && !loading && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
-            <div
-              className="p-8 rounded-3xl text-center max-w-sm pointer-events-auto border animate-fade-in shadow-2xl mx-4"
-              style={{
-                background: 'rgba(15, 23, 42, 0.92)',
-                borderColor: 'rgba(59, 130, 246, 0.4)',
-                backdropFilter: 'blur(20px)',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(59,130,246,0.2)',
-              }}
-            >
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-inner">
-                <Building2 size={32} />
-              </div>
-              <h3 className="text-base font-black text-white mb-2">
-                {t('chart_empty_dept')}
-              </h3>
-              <p className="text-slate-400 text-xs leading-relaxed mb-6">
-                {t('filter_active_notice')}: <strong className="text-blue-300 font-bold">{selectedDept}</strong>
-                <br />
-                {t('chart_empty_dept_desc')}
-              </p>
-              <button
-                onClick={() => setSelectedDept('all')}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg hover:brightness-110 cursor-pointer"
-                style={{
-                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                  boxShadow: '0 4px 15px rgba(37,99,235,0.4)',
-                }}
-              >
-                {t('chart_reset_filter')}
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

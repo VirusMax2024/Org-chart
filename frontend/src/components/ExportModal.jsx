@@ -1,10 +1,11 @@
 // components/ExportModal.jsx — High Quality Export Dialog for Org Chart
-// รองรับการส่งออก: PNG (High-Res Image), PDF Document, JSON Data (Backup), CSV / Excel
+// รองรับการส่งออก: PNG (High-Res Image), PDF Document, JSON Data (Backup), Real Excel Workbook (.xlsx)
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Download, FileImage, FileText, FileSpreadsheet, Code2, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
+import * as XLSX from 'xlsx';
 
 export default function ExportModal({
   isOpen,
@@ -46,6 +47,8 @@ export default function ExportModal({
       const dataUrl = await toPng(container, {
         backgroundColor: '#0a1628',
         pixelRatio: 2, // ความละเอียดสูง คมชัดระดับ Retina Display
+        skipFonts: true, // ข้าม Google Fonts CORS เพื่อให้ capture สำเร็จ 100%
+        cacheBust: false,
         filter: exportFilter,
       });
 
@@ -74,6 +77,8 @@ export default function ExportModal({
       const dataUrl = await toPng(container, {
         backgroundColor: '#0a1628',
         pixelRatio: 2,
+        skipFonts: true,
+        cacheBust: false,
         filter: exportFilter,
       });
 
@@ -134,6 +139,7 @@ export default function ExportModal({
           name: emp.name || emp.full_name,
           position: emp.position,
           department: emp.department,
+          rank: emp.rank || '',
           parent_id: emp.parent_id,
           layout_type: emp.layout_type || 'horizontal',
           phone: emp.phone || '',
@@ -163,24 +169,21 @@ export default function ExportModal({
     }
   };
 
-  // ─── 4. EXPORT CSV / EXCEL ─────────────────────────────────────
-  const handleExportCSV = () => {
-    setExportingType('csv');
+  // ─── 4. EXPORT REAL EXCEL WORKBOOK (.XLSX) ─────────────────────
+  const handleExportExcel = () => {
+    setExportingType('excel');
     try {
       // แผนผัง ID -> Name สำหรับหาชื่อหัวหน้า
       const empMap = new Map();
       employees.forEach((e) => empMap.set(e.id, e.name || e.full_name));
 
-      // UTF-8 BOM (\uFEFF) เพื่อให้ Excel เปิดภาษาไทยได้โดยไม่เป็นภาษาต่างดาว
-      const bom = '\uFEFF';
       const headers = [
         'ID',
         'ชื่อ-นามสกุล (Name)',
         'ตำแหน่ง (Position)',
         'แผนก (Department)',
+        'ระดับ (Rank)',
         'หัวหน้างาน (Reports To)',
-        'รหัสหัวหน้า (Parent ID)',
-        'รูปแบบการแสดงผล (Layout)',
         'เบอร์โทรศัพท์ (Phone)',
         'อีเมล (Email)',
         'Social (@)',
@@ -188,32 +191,42 @@ export default function ExportModal({
 
       const rows = employees.map((emp) => [
         emp.id,
-        `"${(emp.name || emp.full_name || '').replace(/"/g, '""')}"`,
-        `"${(emp.position || '').replace(/"/g, '""')}"`,
-        `"${(emp.department || '').replace(/"/g, '""')}"`,
-        `"${(emp.parent_id && empMap.has(emp.parent_id) ? empMap.get(emp.parent_id) : 'ระดับสูงสุด (Top Level)').replace(/"/g, '""')}"`,
-        emp.parent_id || '',
-        emp.layout_type || 'horizontal',
-        `"${(emp.phone || '').replace(/"/g, '""')}"`,
-        `"${(emp.email || '').replace(/"/g, '""')}"`,
-        `"${(emp.social || '').replace(/"/g, '""')}"`,
+        emp.name || emp.full_name || '',
+        emp.position || '',
+        emp.department || '',
+        emp.rank || '',
+        emp.parent_id && empMap.has(emp.parent_id) ? empMap.get(emp.parent_id) : 'ระดับสูงสุด (Top Level)',
+        emp.phone || '',
+        emp.email || '',
+        emp.social || '',
       ]);
 
-      const csvContent = bom + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
+      const worksheetData = [headers, ...rows];
+      const ws = XLSX.utils.aoa_to_sheet(worksheetData);
 
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `org-chart-employees-${dateStr}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      // กำหนดความกว้างคอลัมน์ให้อ่านง่ายใน Excel
+      ws['!cols'] = [
+        { wch: 8 },  // ID
+        { wch: 26 }, // Name
+        { wch: 22 }, // Position
+        { wch: 18 }, // Department
+        { wch: 12 }, // Rank
+        { wch: 24 }, // Reports To
+        { wch: 16 }, // Phone
+        { wch: 26 }, // Email
+        { wch: 16 }, // Social
+      ];
 
-      setSuccessType('csv');
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Employees Org');
+
+      XLSX.writeFile(wb, `org-chart-employees-${dateStr}.xlsx`);
+
+      setSuccessType('excel');
       setTimeout(() => setSuccessType(null), 3000);
     } catch (err) {
-      console.error('Export CSV failed:', err);
-      alert('ไม่สามารถส่งออกไฟล์ CSV ได้');
+      console.error('Export Excel failed:', err);
+      alert('ไม่สามารถส่งออกไฟล์ Excel (.xlsx) ได้ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setExportingType(null);
     }
@@ -251,14 +264,14 @@ export default function ExportModal({
       onClick: handleExportJSON,
     },
     {
-      id: 'csv',
-      title: 'CSV / Excel',
-      subtitle: 'ตารางรายชื่อพนักงานและลำดับชั้นสายงาน',
-      desc: 'รองรับ Microsoft Excel ภาษาไทย (UTF-8 BOM)',
+      id: 'excel',
+      title: 'Excel Workbook (.xlsx)',
+      subtitle: 'ตารางข้อมูลพนักงานระดับองค์กร (Microsoft Excel)',
+      desc: 'ไฟล์ .xlsx แท้ 100% เปิดใน Excel ได้ทันที ภาษาไทย/ลาวไม่เพี้ยน',
       icon: FileSpreadsheet,
-      color: '#f59e0b',
-      bgGlow: 'rgba(245, 158, 11, 0.15)',
-      onClick: handleExportCSV,
+      color: '#10b981',
+      bgGlow: 'rgba(16, 185, 129, 0.15)',
+      onClick: handleExportExcel,
     },
   ];
 

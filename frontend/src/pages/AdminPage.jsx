@@ -16,6 +16,7 @@ import OrgChart from '../components/OrgChart';
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee, saveLayout, resetLayout, batchImportEmployees } from '../api/employeeApi';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departmentApi';
 import { getSettings, updateSettings } from '../api/settingsApi';
+import * as XLSX from 'xlsx';
 
 export default function AdminPage() {
   const { user, logout } = useAuth();
@@ -198,6 +199,10 @@ export default function AdminPage() {
 
       const updated = await updateSettings(fd);
       setSettings(updated);
+      setLogoFile(null);
+      setBgFile(null);
+      if (updated.company_logo_url) setLogoPreview(updated.company_logo_url);
+      if (updated.bg_image_url) setBgPreview(updated.bg_image_url);
       showToast('✅ บันทึกการตั้งค่าเว็บไซต์และแบรนด์สำเร็จ');
     } catch (err) {
       showToast('❌ ไม่สามารถบันทึกการตั้งค่าได้', 'error');
@@ -212,6 +217,22 @@ export default function AdminPage() {
     fetchDepartmentsData();
     fetchSettingsData();
   }, [fetchEmployeesData, fetchDepartmentsData, fetchSettingsData]);
+
+  // ─── Sync Browser Title & Favicon ตามการตั้งค่าแบรนด์ ───
+  useEffect(() => {
+    if (settings?.company_name) {
+      document.title = `${settings.company_name} — Admin Backoffice`;
+    }
+    if (settings?.company_logo_url) {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = settings.company_logo_url;
+    }
+  }, [settings?.company_name, settings?.company_logo_url]);
 
   // ─────────────────────────────────────────────────────────────
   // HANDLERS: EMPLOYEES CRUD
@@ -353,128 +374,184 @@ export default function AdminPage() {
   const endIndex = Math.min(startIndex + pageSize, filteredEmployees.length);
   const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
 
-  // ส่งออกข้อมูลพนักงานเป็น CSV (UTF-8 BOM รองรับภาษาไทยและลาวใน Excel 100%)
-  const handleExportCSV = () => {
+  // ─── แสดง Badge ระดับพนักงาน (Rank G1–G5) ในตาราง ───
+  const renderRankBadge = (rank) => {
+    const r = String(rank || '').trim().toUpperCase();
+    if (r === 'G1') {
+      return (
+        <span
+          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black text-pink-300 border border-pink-500/40 shadow-sm"
+          style={{ background: 'linear-gradient(135deg, rgba(255,0,128,0.25), rgba(0,191,255,0.25))' }}
+        >
+          🌟 G1
+        </span>
+      );
+    }
+    if (r === 'G2') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-sky-300 bg-sky-500/15 border border-sky-500/35">
+          💎 G2
+        </span>
+      );
+    }
+    if (r === 'G3') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/35">
+          ☀️ G3
+        </span>
+      );
+    }
+    if (r === 'G4') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold text-slate-200 bg-slate-500/20 border border-slate-400/30">
+          ❄️ G4
+        </span>
+      );
+    }
+    if (r === 'G5') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-300 bg-slate-800 border border-white/10">
+          🔥 G5
+        </span>
+      );
+    }
+    return <span className="text-slate-600 text-xs font-mono">—</span>;
+  };
+
+  // ─── ส่งออกข้อมูลพนักงานเป็น Microsoft Excel (.xlsx แท้) ───
+  const handleExportExcel = () => {
     if (filteredEmployees.length === 0) {
       showToast('ບໍ່ມີຂໍ້ມູນພະນັກງານສຳລັບສົ່ງອອກ / ไม่มีข้อมูลสำหรับส่งออก', 'error');
       return;
     }
-    const headers = ['ID', 'Name', 'Position', 'Department', 'Rank', 'Phone', 'Email', 'ReportsTo'];
-    const rows = filteredEmployees.map((e) => [
-      e.id,
-      `"${(e.name || e.full_name || '').replace(/"/g, '""')}"`,
-      `"${(e.position || '').replace(/"/g, '""')}"`,
-      `"${(e.department || '').replace(/"/g, '""')}"`,
-      `"${(e.rank || '').replace(/"/g, '""')}"`,
-      `"${(e.phone || '').replace(/"/g, '""')}"`,
-      `"${(e.email || '').replace(/"/g, '""')}"`,
-      `"${(getParentName(e.parent_id) || '').replace(/"/g, '""')}"`,
-    ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `employees_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast(`${t('btn_export')} ສຳເລັດ ${filteredEmployees.length} ຄົນ`, 'success');
-  };
+    try {
+      const headers = ['ID', 'Name', 'Position', 'Department', 'Rank', 'ReportsTo', 'Phone', 'Email'];
+      const rows = filteredEmployees.map((e) => [
+        e.id,
+        e.name || e.full_name || '',
+        e.position || '',
+        e.department || '',
+        e.rank || '',
+        getParentName(e.parent_id) || '',
+        e.phone || '',
+        e.email || '',
+      ]);
 
-  // ดาวน์โหลดฟอร์มตัวอย่าง CSV Template สำหรับ Import
-  const handleDownloadTemplate = () => {
-    const headers = ['Name', 'Position', 'Department', 'Rank', 'Phone', 'Email', 'ReportsTo'];
-    const sampleRows = [
-      ['Alex Morgan', 'CEO & Founder', 'Executive', 'G1', '0201234567', 'alex@company.com', ''],
-      ['Somsack Soulivong', 'IT Director', 'IT', 'G2', '0209876543', 'somsack@company.com', 'Alex Morgan'],
-      ['Keo Phommavong', 'Senior Developer', 'IT', 'G3', '0205555444', 'keo@company.com', 'Somsack Soulivong'],
-      ['Noy Sengchanh', 'HR Manager', 'HR', 'G2', '0207777888', 'noy@company.com', 'Alex Morgan'],
-    ];
-    const csvContent = '\uFEFF' + [headers.join(','), ...sampleRows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'employee_import_template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      ws['!cols'] = [
+        { wch: 8 },
+        { wch: 26 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 24 },
+        { wch: 16 },
+        { wch: 26 },
+      ];
 
-  // แยกวิเคราะห์ไฟล์ CSV (Parser)
-  const parseCSV = (text) => {
-    const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
-    if (lines.length < 2) return [];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Employees');
 
-    const parseRow = (line) => {
-      const result = [];
-      let cur = '';
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const char = line[i];
-        if (char === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            cur += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (char === ',' && !inQuotes) {
-          result.push(cur.trim());
-          cur = '';
-        } else {
-          cur += char;
-        }
-      }
-      result.push(cur.trim());
-      return result;
-    };
-
-    const rawHeaders = parseRow(lines[0]);
-    const headers = rawHeaders.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    const items = [];
-    for (let i = 1; i < lines.length; i++) {
-      const row = parseRow(lines[i]);
-      if (row.length === 0 || !row.some((c) => c.length > 0)) continue;
-      const obj = {};
-      headers.forEach((h, idx) => {
-        const val = row[idx] || '';
-        if (h.includes('name') || h === 'fullname') obj.name = val;
-        else if (h.includes('pos') || h === 'title') obj.position = val;
-        else if (h.includes('dep') || h === 'team') obj.department = val;
-        else if (h.includes('rank') || h === 'grade') obj.rank = val;
-        else if (h.includes('phone') || h === 'tel') obj.phone = val;
-        else if (h.includes('mail')) obj.email = val;
-        else if (h.includes('report') || h.includes('super') || h.includes('parent')) obj.supervisor = val;
-      });
-      if (obj.name) {
-        if (!obj.position) obj.position = 'Staff';
-        items.push(obj);
-      }
+      const dateStr = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `employees_${dateStr}.xlsx`);
+      showToast(`ສົ່ງອອກ Excel ສຳເລັດ ${filteredEmployees.length} ຄົນ`, 'success');
+    } catch (err) {
+      console.error('Export Excel error:', err);
+      showToast('ບໍ່ສາມາດສົ່ງອອກໄຟລ໌ Excel ໄດ້', 'error');
     }
-    return items;
   };
 
+  // ─── ดาวน์โหลดตัวอย่างไฟล์ Excel Template (.xlsx) สำหรับนำเข้า ───
+  const handleDownloadTemplate = () => {
+    try {
+      const headers = ['Name', 'Position', 'Department', 'Rank', 'Phone', 'Email', 'ReportsTo'];
+      const sampleRows = [
+        ['Alex Morgan', 'CEO & Founder', 'Executive', 'G1', '0201234567', 'alex@company.com', ''],
+        ['Somsack Soulivong', 'IT Director', 'IT', 'G2', '0209876543', 'somsack@company.com', 'Alex Morgan'],
+        ['Keo Phommavong', 'Senior Developer', 'IT', 'G3', '0205555444', 'keo@company.com', 'Somsack Soulivong'],
+        ['Noy Sengchanh', 'HR Manager', 'HR', 'G2', '0207777888', 'noy@company.com', 'Alex Morgan'],
+        ['Somchai Prasert', 'Senior Accountant', 'Finance', 'G4', '0203333222', 'somchai@company.com', 'Noy Sengchanh'],
+        ['Manee Jaidee', 'Junior Officer', 'Finance', 'G5', '0201111999', 'manee@company.com', 'Somchai Prasert'],
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+      ws['!cols'] = [
+        { wch: 24 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 12 },
+        { wch: 16 },
+        { wch: 26 },
+        { wch: 24 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Import Template');
+      XLSX.writeFile(wb, 'employee_import_template.xlsx');
+    } catch (err) {
+      console.error('Download template error:', err);
+      showToast('ບໍ່ສາມາດດາວໂຫຼດ Template ໄດ້', 'error');
+    }
+  };
+
+  // ─── นำเข้าและแยกวิเคราะห์ไฟล์ (.xlsx, .xls, .csv) ด้วย SheetJS ───
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportFileName(file.name);
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const content = evt.target.result;
-        const rows = parseCSV(content);
-        if (rows.length === 0) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+        if (!rawRows || rawRows.length < 2) {
           showToast('ບໍ່ພົບຂໍ້ມູນພະນັກງານໃນໄຟລ໌ / ไม่พบข้อมูลพนักงานในไฟล์', 'error');
           return;
         }
-        setImportPreviewRows(rows);
+
+        const rawHeaders = (rawRows[0] || []).map((h) =>
+          String(h || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+        );
+
+        const items = [];
+        for (let i = 1; i < rawRows.length; i++) {
+          const row = rawRows[i];
+          if (!row || row.length === 0 || !row.some((c) => String(c).trim().length > 0)) continue;
+
+          const obj = {};
+          rawHeaders.forEach((h, idx) => {
+            const val = String(row[idx] ?? '').trim();
+            if (h.includes('name') || h === 'fullname') obj.name = val;
+            else if (h.includes('pos') || h === 'title') obj.position = val;
+            else if (h.includes('dep') || h === 'team') obj.department = val;
+            else if (h.includes('rank') || h === 'grade') obj.rank = val;
+            else if (h.includes('phone') || h === 'tel') obj.phone = val;
+            else if (h.includes('mail')) obj.email = val;
+            else if (h.includes('report') || h.includes('super') || h.includes('parent')) obj.supervisor = val;
+          });
+
+          if (obj.name) {
+            if (!obj.position) obj.position = 'Staff';
+            items.push(obj);
+          }
+        }
+
+        if (items.length === 0) {
+          showToast('ບໍ່ພົບຂໍ້ມູນພະນັກງານໃນໄຟລ໌ / ไม่พบข้อมูลพนักงานในไฟล์', 'error');
+          return;
+        }
+        setImportPreviewRows(items);
       } catch (err) {
-        showToast('ບໍ່ສາມາດອ່ານໄຟລ໌ CSV ໄດ້ / ไม่สามารถอ่านไฟล์ CSV ได้', 'error');
+        console.error('File parse error:', err);
+        showToast('ບໍ່ສາມາດອ່ານໄຟລ໌ Excel/CSV ໄດ້ / ไม่สามารถอ่านไฟล์ได้', 'error');
       }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleConfirmImport = async () => {
@@ -533,14 +610,22 @@ export default function AdminPage() {
           </Link>
           <div className="w-px h-5 bg-white/10" />
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black shadow-md"
-              style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}
-            >
-              🏢
-            </div>
+            {settings?.company_logo_url ? (
+              <div className="w-8 h-8 rounded-xl overflow-hidden bg-white/5 border border-white/10 flex items-center justify-center p-1 shadow-md">
+                <img src={settings.company_logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
+              </div>
+            ) : (
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black shadow-md"
+                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)' }}
+              >
+                🏢
+              </div>
+            )}
             <div>
-              <h1 className="text-white font-black text-base leading-none">BORCELLE ADMIN</h1>
+              <h1 className="text-white font-black text-base leading-none uppercase tracking-wide">
+                {settings?.company_name ? `${settings.company_name} ADMIN` : 'BORCELLE ADMIN'}
+              </h1>
               <p className="text-blue-300 text-[11px] mt-0.5">Management Backoffice</p>
             </div>
           </div>
@@ -720,18 +805,18 @@ export default function AdminPage() {
                   <RefreshCw size={15} className={empLoading ? 'animate-spin' : ''} />
                 </button>
 
-                {/* ปุ่มส่งออก CSV (Export CSV) */}
+                {/* ปุ่มส่งออก Excel (.xlsx แท้) */}
                 <button
                   type="button"
-                  onClick={handleExportCSV}
+                  onClick={handleExportExcel}
                   className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 hover:text-white transition-all shadow-sm cursor-pointer"
-                  title="ສົ່ງອອກໄຟລ໌ CSV / Export CSV"
+                  title="ສົ່ງອອກໄຟລ໌ Excel (.xlsx) / Export Excel"
                 >
-                  <Download size={14} className="text-emerald-400" />
-                  <span>{t('btn_export')}</span>
+                  <FileSpreadsheet size={14} className="text-emerald-400" />
+                  <span>ສົ່ງອອກ Excel</span>
                 </button>
 
-                {/* ปุ่มนำเข้า CSV (Import CSV) */}
+                {/* ปุ่มนำเข้า Excel / CSV (Import Excel) */}
                 <button
                   type="button"
                   onClick={() => {
@@ -740,10 +825,10 @@ export default function AdminPage() {
                     setImportModalOpen(true);
                   }}
                   className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 hover:text-white transition-all shadow-sm cursor-pointer"
-                  title="ນຳເຂົ້າໄຟລ໌ CSV / Import CSV"
+                  title="ນຳເຂົ້າໄຟລ໌ Excel (.xlsx, .xls, .csv) / Import Excel"
                 >
                   <Upload size={14} className="text-amber-400" />
-                  <span>{t('btn_import')}</span>
+                  <span>ນຳເຂົ້າ Excel</span>
                 </button>
 
                 <button
@@ -871,6 +956,7 @@ export default function AdminPage() {
                         <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('full_name')}>{t('col_name')}</th>
                         <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('position')}>{t('col_position')}</th>
                         <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('department')}>{t('col_department')}</th>
+                        <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('rank')}>{t('col_rank')}</th>
                         <th className="px-5 py-3.5">{t('col_reports_to')}</th>
                         <th className="px-5 py-3.5 text-right">{t('col_actions')}</th>
                       </tr>
@@ -912,6 +998,9 @@ export default function AdminPage() {
                             >
                               {emp.department}
                             </span>
+                          </td>
+                          <td className="px-5 py-3">
+                            {renderRankBadge(emp.rank)}
                           </td>
                           <td className="px-5 py-3 text-sm text-slate-300">{getParentName(emp.parent_id)}</td>
                           <td className="px-5 py-3 text-right">
@@ -1476,43 +1565,43 @@ export default function AdminPage() {
             </div>
 
             {/* Template Download Box */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
               <div className="flex items-center gap-2.5">
-                <FileText size={18} className="text-blue-400 flex-shrink-0" />
+                <FileSpreadsheet size={18} className="text-emerald-400 flex-shrink-0" />
                 <div className="text-xs">
-                  <strong className="text-white block font-bold">{t('download_template')}</strong>
-                  <span className="text-blue-200/70">ມີຫົວຕາຕະລາງ ແລະ ຕົວຢ່າງຂໍ້ມູນພ້ອມໃຊ້ງານ</span>
+                  <strong className="text-white block font-bold">ດາວໂຫຼດຟອມຕົວຢ່າງ Excel / ดาวน์โหลด Template Excel (.xlsx)</strong>
+                  <span className="text-emerald-200/70">ມີຫົວຕາຕະລາງ G1–G5 ແລະ ຕົວຢ່າງຂໍ້ມູນພ້ອມໃຊ້ງານ</span>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-300 hover:text-white bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 transition-all cursor-pointer whitespace-nowrap"
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 transition-all cursor-pointer whitespace-nowrap"
               >
                 <Download size={13} />
-                <span>ດາວໂຫຼດຟອມ CSV</span>
+                <span>ດາວໂຫຼດ Excel (.xlsx)</span>
               </button>
             </div>
 
             {/* File Drop / Select Area */}
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-white/20 hover:border-blue-400/60 bg-white/5 hover:bg-blue-500/5 rounded-2xl p-6 text-center cursor-pointer transition-all group"
+              className="border-2 border-dashed border-white/20 hover:border-emerald-400/60 bg-white/5 hover:bg-emerald-500/5 rounded-2xl p-6 text-center cursor-pointer transition-all group"
             >
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
                 className="hidden"
                 onChange={handleFileSelect}
               />
-              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-blue-400 group-hover:scale-110 transition-all">
-                <Upload size={22} />
+              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-emerald-400 group-hover:scale-110 transition-all">
+                <FileSpreadsheet size={22} />
               </div>
               <p className="text-white text-xs font-bold mb-1">
-                {importFileName ? `ໄຟລ໌ທີ່ເລືອກ: ${importFileName}` : t('drag_drop_csv')}
+                {importFileName ? `ໄຟລ໌ທີ່ເລືອກ: ${importFileName}` : 'ຄລິກເພື່ອເລືອກໄຟລ໌ ຫຼື ລາກໄຟລ໌ Excel / CSV ມາວາງທີ່ນີ້'}
               </p>
-              <p className="text-slate-500 text-[11px]">ຮອງຮັບໄຟລ໌ UTF-8 .CSV (ຂັ້ນດ້ວຍຈຸດ ,)</p>
+              <p className="text-slate-500 text-[11px]">ຮອງຮັບໄຟລ໌ Microsoft Excel (.xlsx, .xls) ແລະ CSV UTF-8</p>
             </div>
 
             {/* Preview Section */}
@@ -1530,8 +1619,8 @@ export default function AdminPage() {
                         <th className="p-2">{t('col_name')}</th>
                         <th className="p-2">{t('col_position')}</th>
                         <th className="p-2">{t('col_department')}</th>
-                        <th className="p-2">Rank</th>
-                        <th className="p-2">Supervisor</th>
+                        <th className="p-2">{t('col_rank') || 'ລະດັບ'}</th>
+                        <th className="p-2">{t('col_reports_to')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
