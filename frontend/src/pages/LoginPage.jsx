@@ -1,5 +1,5 @@
 // pages/LoginPage.jsx — หน้าล็อกอินแอดมิน (Admin Login) + i18n support
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Lock, User, ArrowLeft, ShieldCheck, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
