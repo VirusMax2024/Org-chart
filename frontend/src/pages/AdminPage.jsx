@@ -6,7 +6,7 @@ import {
   ArrowLeft, Users, Building2, LayoutDashboard, Settings as SettingsIcon,
   Plus, Pencil, Trash2, Search, RefreshCw, LogOut, Save, RotateCcw,
   Maximize2, Image, CheckCircle, AlertCircle, ChevronUp, ChevronDown, Sparkles,
-  Download, Upload, FileText, ChevronLeft, ChevronRight as ChevronRightIcon, Filter
+  Download, Upload, FileText, FileSpreadsheet, ChevronLeft, ChevronRight as ChevronRightIcon, Filter
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';

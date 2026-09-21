@@ -1,17 +1,18 @@
-// App.jsx — React Router setup พร้อม AuthProvider, LanguageProvider และ ProtectedRoute
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import ChartPage from './pages/ChartPage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <AuthProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <AuthProvider>
         <BrowserRouter>
           <Routes>
             {/* หน้าหลักสาธารณะ: ผังองค์กร Org Chart (Static Read-Only) */}
@@ -36,5 +37,6 @@ export default function App() {
         </BrowserRouter>
       </AuthProvider>
     </LanguageProvider>
+    </ErrorBoundary>
   );
 }
