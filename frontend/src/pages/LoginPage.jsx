@@ -35,7 +35,7 @@ export default function LoginPage() {
             ? 'เซิร์ฟเวอร์คลาวด์กำลังตื่นจากการหลับ (Cold Start) กรุณารอสักครู่แล้วกดเข้าสู่ระบบอีกครั้ง'
             : lang === 'lo'
             ? 'ເຊີບເວີກຳລັງເລີ່ມຕົ້ນ (Cold Start) ກະລຸນາລໍຖ້າແລ້ວກົດອີກຄັ້ງ'
-            : 'Cloud server is waking up (Cold Start). Please wait a few seconds and try again.'
+            : 'Cloud server is waking up (Cold Start). Please wait a few seconds and try again......'
         );
       } else {
         setError(err.response?.data?.message || err.message || t('login_error_fail'));
