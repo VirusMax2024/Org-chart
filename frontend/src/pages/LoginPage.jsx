@@ -29,7 +29,17 @@ export default function LoginPage() {
       await login(username.trim(), password);
       navigate('/admin');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || t('login_error_fail'));
+      if (err.code === 'ECONNABORTED' || err.message?.toLowerCase().includes('timeout')) {
+        setError(
+          lang === 'th'
+            ? 'เซิร์ฟเวอร์คลาวด์กำลังตื่นจากการหลับ (Cold Start) กรุณารอสักครู่แล้วกดเข้าสู่ระบบอีกครั้ง'
+            : lang === 'lo'
+            ? 'ເຊີບເວີກຳລັງເລີ່ມຕົ້ນ (Cold Start) ກະລຸນາລໍຖ້າແລ້ວກົດອີກຄັ້ງ'
+            : 'Cloud server is waking up (Cold Start). Please wait a few seconds and try again.'
+        );
+      } else {
+        setError(err.response?.data?.message || err.message || t('login_error_fail'));
+      }
     } finally {
       setLoading(false);
     }
@@ -149,12 +159,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Quick Demo Credentials Reminder */}
-          <div className="mt-6 pt-4 border-t border-white/10 text-center">
-            <p className="text-[11px] text-slate-400">
-              {'\ud83d\udca1'} {t('login_hint')}: <span className="text-blue-300 font-mono font-semibold">admin</span> / <span className="text-blue-300 font-mono font-semibold">admin123</span>
-            </p>
-          </div>
         </div>
       </div>
     </div>

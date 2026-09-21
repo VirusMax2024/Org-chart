@@ -5,7 +5,7 @@ const BASE_URL = `${API_BASE}/api/employees`;
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 15000,
+  timeout: 60000,
 });
 
 // ใส่ Authorization header อัตโนมัติถ้ามี token ใน localStorage
