@@ -303,23 +303,30 @@ export default function OrgChart({
   }, [employees]);
 
   // คำนวณ Layout เมื่อ employees เปลี่ยน
+  const prevEmpIdsRef = useRef('');
   useEffect(() => {
     if (!employees || employees.length === 0) {
       setNodes([]);
       setEdges([]);
+      prevEmpIdsRef.current = '';
       return;
     }
     const { nodes: newNodes, edges: newEdges } = computeLayout(employees, isEditor);
     setNodes(newNodes);
     setEdges(newEdges);
 
-    // ปรับมุมมองให้อยู่กึ่งกลางหน้าจออย่างนุ่มนวลเมื่อมีการกรองหรือเปลี่ยนข้อมูล
-    const timer = setTimeout(() => {
-      if (reactFlowRef.current) {
-        reactFlowRef.current.fitView({ padding: 0.25, duration: 400 });
-      }
-    }, 60);
-    return () => clearTimeout(timer);
+    // ปรับมุมมองให้อยู่กึ่งกลางเฉพาะเมื่อรายการพนักงานเปลี่ยน (เช่น เปลี่ยนฟิลเตอร์แผนก)
+    // เพื่อไม่ให้รบกวนมุมมองที่ผู้ใช้ซูมหรือเลื่อนดูอยู่
+    const currentIds = employees.map((e) => e.id).sort().join(',');
+    if (prevEmpIdsRef.current !== currentIds) {
+      prevEmpIdsRef.current = currentIds;
+      const timer = setTimeout(() => {
+        if (reactFlowRef.current) {
+          reactFlowRef.current.fitView({ padding: 0.25, duration: 400 });
+        }
+      }, 60);
+      return () => clearTimeout(timer);
+    }
   }, [employees, isEditor, setNodes, setEdges]);
 
   // แจ้ง Parent ทราบเมื่อมีการลากขยับ Node

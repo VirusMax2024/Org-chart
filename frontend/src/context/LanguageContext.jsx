@@ -7,13 +7,13 @@ const LanguageContext = createContext(null);
 
 // ── LanguageProvider: ครอบ App ทั้งหมด ──────────────────────────
 export function LanguageProvider({ children }) {
-  // อ่านภาษาจาก localStorage หรือค่าเริ่มต้น 'th'
+  // อ่านภาษาจาก localStorage หรือค่าเริ่มต้นเป็น 'lo' (ພາສາລາວ) ตามคำสั่งของ CEO MAC
   const [lang, setLangState] = useState(() => {
     try {
       const saved = localStorage.getItem('org_chart_lang');
-      return ['th', 'en', 'lo'].includes(saved) ? saved : 'th';
+      return ['lo', 'th', 'en'].includes(saved) ? saved : 'lo';
     } catch {
-      return 'th';
+      return 'lo';
     }
   });
 
@@ -27,15 +27,15 @@ export function LanguageProvider({ children }) {
 
   // เปลี่ยนภาษาและบันทึกลง localStorage
   const setLang = useCallback((newLang) => {
-    if (['th', 'en', 'lo'].includes(newLang)) {
+    if (['lo', 'th', 'en'].includes(newLang)) {
       setLangState(newLang);
       try { localStorage.setItem('org_chart_lang', newLang); } catch {}
     }
   }, []);
 
-  // ฟังก์ชัน t(key) — แปลคีย์เป็นข้อความตามภาษาปัจจุบัน
+  // ฟังก์ชัน t(key) — แปลคีย์เป็นข้อความตามภาษาปัจจุบัน โดย fallback ไปที่ 'lo' และ 'th'
   const t = useCallback((key) => {
-    return translations[lang]?.[key] ?? translations['th']?.[key] ?? key;
+    return translations[lang]?.[key] ?? translations['lo']?.[key] ?? translations['th']?.[key] ?? key;
   }, [lang]);
 
   return (

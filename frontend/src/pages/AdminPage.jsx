@@ -5,14 +5,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Users, Building2, LayoutDashboard, Settings as SettingsIcon,
   Plus, Pencil, Trash2, Search, RefreshCw, LogOut, Save, RotateCcw,
-  Maximize2, Image, CheckCircle, AlertCircle, ChevronUp, ChevronDown, Sparkles
+  Maximize2, Image, CheckCircle, AlertCircle, ChevronUp, ChevronDown, Sparkles,
+  Download, Upload, FileText, ChevronLeft, ChevronRight as ChevronRightIcon, Filter
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTranslation } from '../context/LanguageContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import EmployeeForm from '../components/EmployeeForm';
 import OrgChart from '../components/OrgChart';
-import { getEmployees, createEmployee, updateEmployee, deleteEmployee, saveLayout, resetLayout } from '../api/employeeApi';
+import { getEmployees, createEmployee, updateEmployee, deleteEmployee, saveLayout, resetLayout, batchImportEmployees } from '../api/employeeApi';
 import { getDepartments, createDepartment, updateDepartment, deleteDepartment } from '../api/departmentApi';
 import { getSettings, updateSettings } from '../api/settingsApi';
 
@@ -41,6 +42,22 @@ export default function AdminPage() {
   const [deleteEmpModal, setDeleteEmpModal] = useState(null);
   const [searchQuery, setSearchQuery]     = useState('');
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('ALL');
+  const [isAdminDeptOpen, setIsAdminDeptOpen]       = useState(false);
+  const adminDeptRef                                = useRef(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage]               = useState(1);
+  const [pageSize, setPageSize]                     = useState(10);
+  const [isPageSizeOpen, setIsPageSizeOpen]         = useState(false);
+  const pageSizeRef                                 = useRef(null);
+
+  // Import / Export State
+  const [importModalOpen, setImportModalOpen]       = useState(false);
+  const [importPreviewRows, setImportPreviewRows]   = useState([]);
+  const [importFileName, setImportFileName]         = useState('');
+  const [isImporting, setIsImporting]               = useState(false);
+  const fileInputRef                                = useRef(null);
+
   const [sortField, setSortField]         = useState('id');
   const [sortDir, setSortDir]             = useState('asc');
 
@@ -311,6 +328,176 @@ export default function AdminPage() {
     return d?.color || '#3b82f6';
   };
 
+  // รีเซ็ตหน้ากลับเป็นหน้า 1 เมื่อมีการค้นหา หรือกรองแผนก หรือเปลี่ยนขนาดหน้า
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedDeptFilter, pageSize]);
+
+  // ปิด Dropdown เมื่อคลิกนอกพื้นที่
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (adminDeptRef.current && !adminDeptRef.current.contains(e.target)) {
+        setIsAdminDeptOpen(false);
+      }
+      if (pageSizeRef.current && !pageSizeRef.current.contains(e.target)) {
+        setIsPageSizeOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // คำนวณข้อมูล Pagination
+  const totalPages = Math.ceil(filteredEmployees.length / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredEmployees.length);
+  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+
+  // ส่งออกข้อมูลพนักงานเป็น CSV (UTF-8 BOM รองรับภาษาไทยและลาวใน Excel 100%)
+  const handleExportCSV = () => {
+    if (filteredEmployees.length === 0) {
+      showToast('ບໍ່ມີຂໍ້ມູນພະນັກງານສຳລັບສົ່ງອອກ / ไม่มีข้อมูลสำหรับส่งออก', 'error');
+      return;
+    }
+    const headers = ['ID', 'Name', 'Position', 'Department', 'Rank', 'Phone', 'Email', 'ReportsTo'];
+    const rows = filteredEmployees.map((e) => [
+      e.id,
+      `"${(e.name || e.full_name || '').replace(/"/g, '""')}"`,
+      `"${(e.position || '').replace(/"/g, '""')}"`,
+      `"${(e.department || '').replace(/"/g, '""')}"`,
+      `"${(e.rank || '').replace(/"/g, '""')}"`,
+      `"${(e.phone || '').replace(/"/g, '""')}"`,
+      `"${(e.email || '').replace(/"/g, '""')}"`,
+      `"${(getParentName(e.parent_id) || '').replace(/"/g, '""')}"`,
+    ]);
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `employees_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`${t('btn_export')} ສຳເລັດ ${filteredEmployees.length} ຄົນ`, 'success');
+  };
+
+  // ดาวน์โหลดฟอร์มตัวอย่าง CSV Template สำหรับ Import
+  const handleDownloadTemplate = () => {
+    const headers = ['Name', 'Position', 'Department', 'Rank', 'Phone', 'Email', 'ReportsTo'];
+    const sampleRows = [
+      ['Alex Morgan', 'CEO & Founder', 'Executive', 'G1', '0201234567', 'alex@company.com', ''],
+      ['Somsack Soulivong', 'IT Director', 'IT', 'G2', '0209876543', 'somsack@company.com', 'Alex Morgan'],
+      ['Keo Phommavong', 'Senior Developer', 'IT', 'G3', '0205555444', 'keo@company.com', 'Somsack Soulivong'],
+      ['Noy Sengchanh', 'HR Manager', 'HR', 'G2', '0207777888', 'noy@company.com', 'Alex Morgan'],
+    ];
+    const csvContent = '\uFEFF' + [headers.join(','), ...sampleRows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'employee_import_template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // แยกวิเคราะห์ไฟล์ CSV (Parser)
+  const parseCSV = (text) => {
+    const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    const parseRow = (line) => {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += char;
+        }
+      }
+      result.push(cur.trim());
+      return result;
+    };
+
+    const rawHeaders = parseRow(lines[0]);
+    const headers = rawHeaders.map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const items = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseRow(lines[i]);
+      if (row.length === 0 || !row.some((c) => c.length > 0)) continue;
+      const obj = {};
+      headers.forEach((h, idx) => {
+        const val = row[idx] || '';
+        if (h.includes('name') || h === 'fullname') obj.name = val;
+        else if (h.includes('pos') || h === 'title') obj.position = val;
+        else if (h.includes('dep') || h === 'team') obj.department = val;
+        else if (h.includes('rank') || h === 'grade') obj.rank = val;
+        else if (h.includes('phone') || h === 'tel') obj.phone = val;
+        else if (h.includes('mail')) obj.email = val;
+        else if (h.includes('report') || h.includes('super') || h.includes('parent')) obj.supervisor = val;
+      });
+      if (obj.name) {
+        if (!obj.position) obj.position = 'Staff';
+        items.push(obj);
+      }
+    }
+    return items;
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const content = evt.target.result;
+        const rows = parseCSV(content);
+        if (rows.length === 0) {
+          showToast('ບໍ່ພົບຂໍ້ມູນພະນັກງານໃນໄຟລ໌ / ไม่พบข้อมูลพนักงานในไฟล์', 'error');
+          return;
+        }
+        setImportPreviewRows(rows);
+      } catch (err) {
+        showToast('ບໍ່ສາມາດອ່ານໄຟລ໌ CSV ໄດ້ / ไม่สามารถอ่านไฟล์ CSV ได้', 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConfirmImport = async () => {
+    if (importPreviewRows.length === 0) return;
+    setIsImporting(true);
+    try {
+      const res = await batchImportEmployees(importPreviewRows);
+      if (res.success) {
+        showToast(`${t('confirm_import')} ສຳເລັດ ${res.count} ຄົນ`, 'success');
+        setImportModalOpen(false);
+        setImportPreviewRows([]);
+        setImportFileName('');
+        await fetchEmployeesData();
+      } else {
+        showToast(res.message || 'ເກີດຂໍ້ຜິດພາດໃນການນຳເຂົ້າ', 'error');
+      }
+    } catch (err) {
+      showToast(err.response?.data?.message || 'ບໍ່ສາມາດນຳເຂົ້າຂໍ້ມູນໄດ້', 'error');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div
       className="min-h-screen text-slate-100 flex flex-col"
@@ -524,21 +711,48 @@ export default function AdminPage() {
                 <p className="text-slate-400 text-xs mt-0.5">เพิ่ม ลบ หรือแก้ไขข้อมูลพนักงานและสายการบังคับบัญชา</p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   onClick={fetchEmployeesData}
-                  className="p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10 transition-all"
-                  title="รีเฟรชข้อมูล"
+                  className="p-2.5 rounded-xl bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10 transition-all cursor-pointer"
+                  title="รีเฟรชข้อมูล / Refresh"
                 >
                   <RefreshCw size={15} className={empLoading ? 'animate-spin' : ''} />
                 </button>
+
+                {/* ปุ่มส่งออก CSV (Export CSV) */}
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 hover:text-white transition-all shadow-sm cursor-pointer"
+                  title="ສົ່ງອອກໄຟລ໌ CSV / Export CSV"
+                >
+                  <Download size={14} className="text-emerald-400" />
+                  <span>{t('btn_export')}</span>
+                </button>
+
+                {/* ปุ่มนำเข้า CSV (Import CSV) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportPreviewRows([]);
+                    setImportFileName('');
+                    setImportModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 hover:text-white transition-all shadow-sm cursor-pointer"
+                  title="ນຳເຂົ້າໄຟລ໌ CSV / Import CSV"
+                >
+                  <Upload size={14} className="text-amber-400" />
+                  <span>{t('btn_import')}</span>
+                </button>
+
                 <button
                   onClick={() => { setEditEmployee(null); setEmpModalOpen(true); }}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all shadow-lg"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all shadow-lg cursor-pointer"
                   style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 4px 15px rgba(37,99,235,0.4)' }}
                 >
                   <Plus size={16} />
-                  <span>เพิ่มพนักงาน</span>
+                  <span>{t('add_employee')}</span>
                 </button>
               </div>
             </div>
@@ -549,26 +763,91 @@ export default function AdminPage() {
                 <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="ค้นหาชื่อ, ตำแหน่ง หรือแผนก..."
+                  placeholder="ຄົ້ນຫາຊື່, ຕຳແໜ່ງ ຫຼື ພະແນກ / ค้นหาชื่อ, ตำแหน่ง หรือแผนก..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none border border-white/10 bg-white/5 focus:border-blue-500 transition-all"
                 />
               </div>
 
-              {/* Department Dropdown Filter */}
-              <select
-                value={selectedDeptFilter}
-                onChange={(e) => setSelectedDeptFilter(e.target.value)}
-                className="w-full sm:w-56 px-4 py-2.5 rounded-xl text-sm text-white outline-none border border-white/10 bg-slate-800 focus:border-blue-500 transition-all"
-              >
-                <option value="ALL">🏢 ทุกแผนก (ทั้งหมด)</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.name}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+              {/* ─── Department Custom Glassmorphism Dropdown Filter ─── */}
+              <div className="relative w-full sm:w-64" ref={adminDeptRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminDeptOpen(!isAdminDeptOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm text-white outline-none border border-white/10 bg-slate-900/80 hover:bg-slate-900/95 transition-all cursor-pointer select-none"
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Building2 size={15} className="text-blue-400 flex-shrink-0" />
+                    <span className="truncate">
+                      {selectedDeptFilter === 'ALL' ? t('filter_all_dept_title') : selectedDeptFilter}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    size={14}
+                    className={`text-slate-400 transition-transform duration-200 ${isAdminDeptOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isAdminDeptOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-full rounded-2xl shadow-2xl z-50 overflow-hidden border border-white/15 animate-fade-in"
+                    style={{
+                      background: 'rgba(15, 23, 42, 0.96)',
+                      backdropFilter: 'blur(20px)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <div className="p-1.5 max-h-60 overflow-y-auto space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedDeptFilter('ALL'); setIsAdminDeptOpen(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          selectedDeptFilter === 'ALL'
+                            ? 'bg-blue-600/35 text-white border border-blue-500/40'
+                            : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                          <span>{t('filter_all_dept_title')}</span>
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">
+                          {employees.length}
+                        </span>
+                      </button>
+
+                      {departments.map((d) => {
+                        const isSelected = selectedDeptFilter === d.name;
+                        const countInDept = employees.filter((e) => e.department === d.name).length;
+                        return (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => { setSelectedDeptFilter(d.name); setIsAdminDeptOpen(false); }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-blue-600/35 text-white border border-blue-500/40'
+                                : 'text-slate-300 hover:text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: d.color || '#3b82f6' }}
+                              />
+                              <span className="truncate">{d.name}</span>
+                            </div>
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 shrink-0 font-mono">
+                              {countInDept}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Table */}
@@ -581,81 +860,186 @@ export default function AdminPage() {
               ) : filteredEmployees.length === 0 ? (
                 <div className="py-20 text-center text-slate-400">
                   <div className="text-4xl mb-2">🔍</div>
-                  <p>ไม่พบรายชื่อพนักงานที่ตรงกับเงื่อนไข</p>
+                  <p>ບໍ່ພົບລາຍຊື່ພະນັກງານທີ່ກົງກັບເງື່ອນໄຂ / ไม่พบรายชื่อพนักงานที่ตรงกับเงื่อนไข</p>
                 </div>
               ) : (
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-black/30 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>#</th>
-                      <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('full_name')}>พนักงาน</th>
-                      <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('position')}>ตำแหน่ง</th>
-                      <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('department')}>แผนก</th>
-                      <th className="px-5 py-3.5">ผู้บังคับบัญชา</th>
-                      <th className="px-5 py-3.5 text-right">จัดการ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEmployees.map((emp, idx) => (
-                      <tr
-                        key={emp.id}
-                        className="border-b border-white/5 hover:bg-blue-500/5 transition-colors"
-                      >
-                        <td className="px-5 py-3 text-xs font-mono text-slate-500">#{emp.id}</td>
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-sm"
-                              style={{ background: 'linear-gradient(135deg, #1e3a8a, #1e40af)' }}
-                            >
-                              {emp.avatar_url ? (
-                                <img src={emp.avatar_url} alt={emp.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-white font-black">{(emp.name || '?').charAt(0)}</span>
-                              )}
-                            </div>
-                            <div>
-                              <div className="text-white font-bold text-sm">{emp.name || emp.full_name}</div>
-                              <div className="text-slate-400 text-xs">{emp.email || emp.phone || emp.social || '—'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-sm text-slate-200">{emp.position}</td>
-                        <td className="px-5 py-3">
-                          <span
-                            className="px-2.5 py-0.5 rounded-full text-xs font-semibold inline-block"
-                            style={{
-                              backgroundColor: `${getDeptColor(emp.department)}20`,
-                              color: getDeptColor(emp.department),
-                              border: `1px solid ${getDeptColor(emp.department)}40`,
-                            }}
-                          >
-                            {emp.department}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3 text-sm text-slate-300">{getParentName(emp.parent_id)}</td>
-                        <td className="px-5 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => { setEditEmployee(emp); setEmpModalOpen(true); }}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center gap-1"
-                            >
-                              <Pencil size={12} />
-                              <span>แก้ไข</span>
-                            </button>
-                            <button
-                              onClick={() => setDeleteEmpModal(emp)}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-all flex items-center gap-1"
-                            >
-                              <Trash2 size={12} />
-                              <span>ลบ</span>
-                            </button>
-                          </div>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-white/10 bg-black/30 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>#</th>
+                        <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('full_name')}>{t('col_name')}</th>
+                        <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('position')}>{t('col_position')}</th>
+                        <th className="px-5 py-3.5 cursor-pointer hover:text-white" onClick={() => handleSort('department')}>{t('col_department')}</th>
+                        <th className="px-5 py-3.5">{t('col_reports_to')}</th>
+                        <th className="px-5 py-3.5 text-right">{t('col_actions')}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {paginatedEmployees.map((emp, idx) => (
+                        <tr
+                          key={emp.id}
+                          className="border-b border-white/5 hover:bg-blue-500/5 transition-colors"
+                        >
+                          <td className="px-5 py-3 text-xs font-mono text-slate-500">#{emp.id}</td>
+                          <td className="px-5 py-3">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-sm"
+                                style={{ background: 'linear-gradient(135deg, #1e3a8a, #1e40af)' }}
+                              >
+                                {emp.avatar_url ? (
+                                  <img src={emp.avatar_url} alt={emp.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-white font-black">{(emp.name || '?').charAt(0)}</span>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-white font-bold text-sm">{emp.name || emp.full_name}</div>
+                                <div className="text-slate-400 text-xs">{emp.email || emp.phone || emp.social || '—'}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-slate-200">{emp.position}</td>
+                          <td className="px-5 py-3">
+                            <span
+                              className="px-2.5 py-0.5 rounded-full text-xs font-semibold inline-block"
+                              style={{
+                                backgroundColor: `${getDeptColor(emp.department)}20`,
+                                color: getDeptColor(emp.department),
+                                border: `1px solid ${getDeptColor(emp.department)}40`,
+                              }}
+                            >
+                              {emp.department}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-sm text-slate-300">{getParentName(emp.parent_id)}</td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => { setEditEmployee(emp); setEmpModalOpen(true); }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <Pencil size={12} />
+                                <span>{t('edit')}</span>
+                              </button>
+                              <button
+                                onClick={() => setDeleteEmpModal(emp)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <Trash2 size={12} />
+                                <span>{t('delete')}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* ─── Pagination Control Bar ─── */}
+              {filteredEmployees.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-5 py-4 border-t border-white/10 bg-black/20 text-xs text-slate-400 select-none">
+                  {/* แสดงสถิติจำนวนรายการ */}
+                  <div className="flex items-center gap-1.5">
+                    <span>{t('pagination_showing')}</span>
+                    <strong className="text-white font-bold">{startIndex + 1}</strong>
+                    <span>{t('pagination_to')}</span>
+                    <strong className="text-white font-bold">{endIndex}</strong>
+                    <span>{t('pagination_of')}</span>
+                    <strong className="text-blue-400 font-bold">{filteredEmployees.length}</strong>
+                    <span>{t('pagination_items')}</span>
+                  </div>
+
+                  {/* ปุ่มเปลี่ยนหน้า Pagination */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <ChevronLeft size={14} />
+                      <span>{t('pagination_prev')}</span>
+                    </button>
+
+                    {/* หมายเลขหน้า */}
+                    <div className="flex items-center gap-1 px-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+                        .map((p, idx, arr) => (
+                          <React.Fragment key={p}>
+                            {idx > 0 && arr[idx - 1] !== p - 1 && (
+                              <span className="px-1 text-slate-500">...</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPage(p)}
+                              className={`w-8 h-8 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                                currentPage === p
+                                  ? 'bg-blue-600 text-white shadow-md'
+                                  : 'text-slate-400 hover:text-white hover:bg-white/10 border border-white/5'
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          </React.Fragment>
+                        ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="px-3 py-1.5 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      <span>{t('pagination_next')}</span>
+                      <ChevronRightIcon size={14} />
+                    </button>
+                  </div>
+
+                  {/* ขนาดจำนวนแถวต่อหน้า (10, 25, 50, 100) */}
+                  <div className="flex items-center gap-2" ref={pageSizeRef}>
+                    <span>{t('pagination_per_page')}:</span>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsPageSizeOpen(!isPageSizeOpen)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 hover:text-white font-bold text-xs cursor-pointer"
+                      >
+                        <span>{pageSize}</span>
+                        <ChevronDown size={12} className={`transition-transform ${isPageSizeOpen ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {isPageSizeOpen && (
+                        <div
+                          className="absolute right-0 bottom-full mb-2 w-24 rounded-xl shadow-2xl border border-white/15 overflow-hidden z-50 animate-fade-in"
+                          style={{ background: 'rgba(15, 23, 42, 0.96)', backdropFilter: 'blur(16px)' }}
+                        >
+                          {[10, 25, 50, 100].map((size) => (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => {
+                                setPageSize(size);
+                                setIsPageSizeOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-xs font-semibold transition-colors cursor-pointer ${
+                                pageSize === size
+                                  ? 'bg-blue-600/35 text-blue-300'
+                                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+                              }`}
+                            >
+                              {size} {t('pagination_items')}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -1045,13 +1429,163 @@ export default function AdminPage() {
                 onClick={() => setDeleteEmpModal(null)}
                 className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-slate-300 border border-white/10 hover:bg-white/5"
               >
-                ยกเลิก
+                {t('cancel')}
               </button>
               <button
                 onClick={() => handleDeleteEmployee(deleteEmpModal.id)}
                 className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-white bg-red-600 hover:bg-red-700 shadow-lg"
               >
-                ลบข้อมูล
+                {t('delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────── */}
+      {/* MODAL: IMPORT EMPLOYEES FROM CSV              */}
+      {/* ───────────────────────────────────────────── */}
+      {importModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div
+            className="w-full max-w-2xl rounded-3xl p-6 border border-white/15 bg-slate-900 shadow-2xl space-y-5"
+            style={{
+              background: 'rgba(15, 23, 42, 0.96)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.1)',
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <Upload size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">{t('modal_import_title')}</h3>
+                  <p className="text-slate-400 text-xs mt-0.5">{t('template_desc')}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setImportModalOpen(false); setImportPreviewRows([]); }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Template Download Box */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25">
+              <div className="flex items-center gap-2.5">
+                <FileText size={18} className="text-blue-400 flex-shrink-0" />
+                <div className="text-xs">
+                  <strong className="text-white block font-bold">{t('download_template')}</strong>
+                  <span className="text-blue-200/70">ມີຫົວຕາຕະລາງ ແລະ ຕົວຢ່າງຂໍ້ມູນພ້ອມໃຊ້ງານ</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-blue-300 hover:text-white bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/40 transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Download size={13} />
+                <span>ດາວໂຫຼດຟອມ CSV</span>
+              </button>
+            </div>
+
+            {/* File Drop / Select Area */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-white/20 hover:border-blue-400/60 bg-white/5 hover:bg-blue-500/5 rounded-2xl p-6 text-center cursor-pointer transition-all group"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <div className="w-12 h-12 mx-auto mb-2 rounded-2xl bg-white/5 flex items-center justify-center text-slate-400 group-hover:text-blue-400 group-hover:scale-110 transition-all">
+                <Upload size={22} />
+              </div>
+              <p className="text-white text-xs font-bold mb-1">
+                {importFileName ? `ໄຟລ໌ທີ່ເລືອກ: ${importFileName}` : t('drag_drop_csv')}
+              </p>
+              <p className="text-slate-500 text-[11px]">ຮອງຮັບໄຟລ໌ UTF-8 .CSV (ຂັ້ນດ້ວຍຈຸດ ,)</p>
+            </div>
+
+            {/* Preview Section */}
+            {importPreviewRows.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-300">{t('preview_data')} ({importPreviewRows.length} ຄົນ):</span>
+                  <span className="text-emerald-400 font-bold">✓ ກວດພົບຂໍ້ມູນຖືກຕ້ອງ</span>
+                </div>
+                <div className="max-h-40 overflow-y-auto rounded-xl border border-white/10 bg-black/30">
+                  <table className="w-full text-left text-[11px]">
+                    <thead className="border-b border-white/10 bg-white/5 text-slate-400 uppercase">
+                      <tr>
+                        <th className="p-2">#</th>
+                        <th className="p-2">{t('col_name')}</th>
+                        <th className="p-2">{t('col_position')}</th>
+                        <th className="p-2">{t('col_department')}</th>
+                        <th className="p-2">Rank</th>
+                        <th className="p-2">Supervisor</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {importPreviewRows.slice(0, 5).map((row, i) => (
+                        <tr key={i} className="hover:bg-white/5">
+                          <td className="p-2 text-slate-500">{i + 1}</td>
+                          <td className="p-2 font-bold text-white">{row.name}</td>
+                          <td className="p-2 text-slate-300">{row.position}</td>
+                          <td className="p-2 text-blue-300">{row.department || '—'}</td>
+                          <td className="p-2 text-slate-400">{row.rank || '—'}</td>
+                          <td className="p-2 text-slate-400">{row.supervisor || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {importPreviewRows.length > 5 && (
+                  <p className="text-[11px] text-slate-500 text-right">
+                    ...ແລະ ອີກ {importPreviewRows.length - 5} ຄົນ
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => { setImportModalOpen(false); setImportPreviewRows([]); }}
+                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={importPreviewRows.length === 0 || isImporting}
+                onClick={handleConfirmImport}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  boxShadow: '0 4px 15px rgba(37,99,235,0.4)',
+                }}
+              >
+                {isImporting ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>{t('importing')}</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={14} />
+                    <span>{t('confirm_import')} ({importPreviewRows.length} ຄົນ)</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -15,6 +15,7 @@ export default function ChartPage() {
   const [selectedDept, setSelectedDept] = useState('all');
   const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
   const deptDropdownRef = useRef(null);
+  const prevDataRef = useRef('');
 
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
@@ -41,7 +42,12 @@ export default function ChartPage() {
         getDepartments().catch(() => []),
         getSettings().catch(() => null),
       ]);
-      setEmployees(empData || []);
+      // ตรวจสอบว่าข้อมูลเปลี่ยนไปจริงหรือไม่ ป้องกัน re-render และไม่ให้กล้อง canvas เด้ง
+      const dataHash = JSON.stringify((empData || []).map(e => [e.id, e.name, e.department, e.parent_id]));
+      if (dataHash !== prevDataRef.current) {
+        prevDataRef.current = dataHash;
+        setEmployees(empData || []);
+      }
       if (Array.isArray(deptData)) setDepartments(deptData);
       if (settingsData) setSettings(settingsData);
       setLastUpdated(new Date());
@@ -54,7 +60,8 @@ export default function ChartPage() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
+    // เพิ่มความถี่การตรวจเช็กเป็น 5 นาที (300,000ms) แทน 30 วิ เพื่อไม่ให้รบกวนผู้ใช้งานขณะดูผัง
+    const interval = setInterval(fetchData, 300000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
@@ -108,8 +115,9 @@ export default function ChartPage() {
       return matchName || matchId;
     });
 
+    // หากแผนกนี้ยังไม่มีพนักงาน ให้ส่ง array ว่าง (ไม่ดึงทุกคนขึ้นมาตามคำสั่งของ CEO MAC)
     if (targetEmps.length === 0) {
-      return employees;
+      return [];
     }
 
     // 2. เก็บ ID พนักงานเป้าหมาย และเดินย้อนสาย parent_id ขึ้นไปจนถึง Root (CEO / Alex)
@@ -492,6 +500,43 @@ export default function ChartPage() {
           isEditor={false}
           companyName={settings.company_name}
         />
+
+        {/* ─── Empty State เมื่อแผนกที่เลือกยังไม่มีข้อมูลพนักงาน ─── */}
+        {selectedDept !== 'all' && filteredEmployees.length === 0 && !loading && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-30">
+            <div
+              className="p-8 rounded-3xl text-center max-w-sm pointer-events-auto border animate-fade-in shadow-2xl mx-4"
+              style={{
+                background: 'rgba(15, 23, 42, 0.92)',
+                borderColor: 'rgba(59, 130, 246, 0.4)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(59,130,246,0.2)',
+              }}
+            >
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shadow-inner">
+                <Building2 size={32} />
+              </div>
+              <h3 className="text-base font-black text-white mb-2">
+                {t('chart_empty_dept')}
+              </h3>
+              <p className="text-slate-400 text-xs leading-relaxed mb-6">
+                {t('filter_active_notice')}: <strong className="text-blue-300 font-bold">{selectedDept}</strong>
+                <br />
+                {t('chart_empty_dept_desc')}
+              </p>
+              <button
+                onClick={() => setSelectedDept('all')}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold text-white transition-all shadow-lg hover:brightness-110 cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                  boxShadow: '0 4px 15px rgba(37,99,235,0.4)',
+                }}
+              >
+                {t('chart_reset_filter')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

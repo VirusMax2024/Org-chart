@@ -302,15 +302,74 @@ router.put('/layout/save', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// POST /api/employees/layout/reset — รีเซ็ตพิกัดกลับเป็นค่า Auto-Layout
+// POST /api/employees/batch-import — นำเข้าข้อมูลพนักงานทีละหลายคน (CSV/JSON)
 // ─────────────────────────────────────────────────────────────
-router.post('/layout/reset', async (req, res) => {
+router.post('/batch-import', async (req, res) => {
+  const { employees } = req.body;
+  if (!Array.isArray(employees) || employees.length === 0) {
+    return res.status(400).json({ success: false, message: 'ไม่มีข้อมูลพนักงานสำหรับการนำเข้า' });
+  }
+
+  const client = await pool.connect();
   try {
-    await pool.query('UPDATE employees SET position_x = NULL, position_y = NULL');
-    res.json({ success: true, message: 'รีเซ็ตพิกัดผังองค์กรกลับเป็นค่าเริ่มต้นสำเร็จ' });
+    await client.query('BEGIN');
+
+    // ดึงพนักงานทั้งหมดเพื่อทำ mapping ชื่อ -> ID ของหัวหน้า
+    const allEmpsRes = await client.query('SELECT id, name FROM employees');
+    const nameToId = new Map();
+    allEmpsRes.rows.forEach(e => {
+      if (e.name) nameToId.set(e.name.trim().toLowerCase(), e.id);
+    });
+
+    const inserted = [];
+    for (const emp of employees) {
+      const name = emp.name || emp.full_name;
+      const position = emp.position || 'Staff';
+      if (!name || !name.trim()) continue;
+
+      let parentId = null;
+      if (emp.parent_id && !isNaN(parseInt(emp.parent_id))) {
+        parentId = parseInt(emp.parent_id);
+      } else if (emp.supervisor || emp.reports_to) {
+        const sName = String(emp.supervisor || emp.reports_to).trim().toLowerCase();
+        if (nameToId.has(sName)) {
+          parentId = nameToId.get(sName);
+        }
+      }
+
+      const result = await client.query(
+        `INSERT INTO employees (name, position, department, rank, phone, email, parent_id, layout_type)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          name.trim(),
+          position.trim(),
+          emp.department ? emp.department.trim() : null,
+          emp.rank ? emp.rank.trim() : null,
+          emp.phone ? emp.phone.trim() : null,
+          emp.email ? emp.email.trim() : null,
+          parentId,
+          'horizontal',
+        ]
+      );
+      const newRow = result.rows[0];
+      nameToId.set(name.trim().toLowerCase(), newRow.id);
+      inserted.push(newRow);
+    }
+
+    await client.query('COMMIT');
+    res.json({
+      success: true,
+      message: `นำเข้าพนักงานสำเร็จทั้งหมด ${inserted.length} คน`,
+      count: inserted.length,
+      data: inserted,
+    });
   } catch (err) {
-    console.error('Reset layout error:', err);
-    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการรีเซ็ต Layout' });
+    await client.query('ROLLBACK');
+    console.error('Batch import error:', err);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการนำเข้าพนักงาน: ' + err.message });
+  } finally {
+    client.release();
   }
 });
 

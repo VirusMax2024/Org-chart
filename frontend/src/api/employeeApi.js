@@ -84,6 +84,12 @@ export const resetLayout = async () => {
   return res.data;
 };
 
+// ─── POST: นำเข้าพนักงานชุดใหญ่ (Batch Import CSV/Excel) ──
+export const batchImportEmployees = async (employeesList) => {
+  const res = await api.post('/batch-import', { employees: employeesList });
+  return res.data;
+};
+
 // ─── Helper: แปลง flat list → tree structure ─────
 export const buildTree = (employees) => {
   const map   = {};
