@@ -136,6 +136,11 @@ const translations = {
     chart_show: 'แสดงหัวข้อ',
     chart_error: 'ไม่สามารถเชื่อมต่อ Backend ได้',
     chart_retry: 'ลองใหม่',
+    filter_dept_label: 'กรองแผนก',
+    filter_all_dept_title: 'ทุกแผนก (ทั้งหมด)',
+    filter_active_notice: 'แสดงเฉพาะแผนก',
+    filter_with_chain: 'พร้อมสายผู้บริหารสูงสุด',
+    filter_clear: 'ล้างตัวกรอง',
 
     // Toast
     toast_save_ok: 'บันทึกสำเร็จ!',
@@ -275,6 +280,11 @@ const translations = {
     chart_show: 'Show Panel',
     chart_error: 'Cannot connect to Backend',
     chart_retry: 'Retry',
+    filter_dept_label: 'Filter Dept',
+    filter_all_dept_title: 'All Departments',
+    filter_active_notice: 'Showing Department',
+    filter_with_chain: 'with Executive Chain of Command',
+    filter_clear: 'Clear Filter',
 
     toast_save_ok: 'Saved successfully!',
     toast_save_fail: 'Failed to save',
@@ -412,6 +422,11 @@ const translations = {
     chart_show: 'ສະແດງ',
     chart_error: 'ເຊື່ອມຕໍ່ Backend ບໍ່ໄດ້',
     chart_retry: 'ລອງໃໝ່',
+    filter_dept_label: 'ກັ່ນຕອງພະແນກ',
+    filter_all_dept_title: 'ທຸກພະແນກ (ທັງໝົດ)',
+    filter_active_notice: 'ສະແດງສະເພາະພະແນກ',
+    filter_with_chain: 'ພ້ອມສາຍຜູ້ບໍລິຫານສູງສຸດ',
+    filter_clear: 'ລ້າງຕົວກອງ',
 
     toast_save_ok: 'ບັນທຶກສຳເລັດ!',
     toast_save_fail: 'ບໍ່ສາມາດບັນທຶກໄດ້',

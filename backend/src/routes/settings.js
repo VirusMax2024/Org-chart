@@ -3,22 +3,12 @@ const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
 const path    = require('path');
-const fs      = require('fs');
 const pool    = require('../db');
 const { verifyToken } = require('../middleware/auth');
+const { uploadImageToR2 } = require('../services/r2Service');
 
-// ─── Multer Config: สำหรับอัปโหลด Logo และ Background Image ──
-const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const prefix = file.fieldname === 'logo' ? 'logo' : 'bg';
-    cb(null, `${prefix}_${Date.now()}${ext}`);
-  },
-});
+// ─── Multer Config: ใช้ memoryStorage เพื่อรองรับ Vercel Serverless ───────────
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -69,14 +59,16 @@ router.put(
 
       let logoUrl = cur.company_logo_url;
       if (req.files && req.files['logo'] && req.files['logo'][0]) {
-        logoUrl = `/uploads/${req.files['logo'][0].filename}`;
+        const logoFile = req.files['logo'][0];
+        logoUrl = await uploadImageToR2(logoFile.buffer, logoFile.originalname, logoFile.mimetype);
       } else if (req.body.company_logo_url !== undefined) {
         logoUrl = req.body.company_logo_url || null;
       }
 
       let bgUrl = cur.bg_image_url;
       if (req.files && req.files['bg_image'] && req.files['bg_image'][0]) {
-        bgUrl = `/uploads/${req.files['bg_image'][0].filename}`;
+        const bgFile = req.files['bg_image'][0];
+        bgUrl = await uploadImageToR2(bgFile.buffer, bgFile.originalname, bgFile.mimetype);
       } else if (req.body.bg_image_url !== undefined) {
         bgUrl = req.body.bg_image_url || null;
       }

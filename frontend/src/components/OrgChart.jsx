@@ -312,6 +312,14 @@ export default function OrgChart({
     const { nodes: newNodes, edges: newEdges } = computeLayout(employees, isEditor);
     setNodes(newNodes);
     setEdges(newEdges);
+
+    // ปรับมุมมองให้อยู่กึ่งกลางหน้าจออย่างนุ่มนวลเมื่อมีการกรองหรือเปลี่ยนข้อมูล
+    const timer = setTimeout(() => {
+      if (reactFlowRef.current) {
+        reactFlowRef.current.fitView({ padding: 0.25, duration: 400 });
+      }
+    }, 60);
+    return () => clearTimeout(timer);
   }, [employees, isEditor, setNodes, setEdges]);
 
   // แจ้ง Parent ทราบเมื่อมีการลากขยับ Node

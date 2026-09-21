@@ -1,17 +1,21 @@
-// pages/ChartPage.jsx — Main Public Org Chart Page
-// พื้นหลังสีน้ำเงิน BORCELLE style (หรือภาพพื้นหลังที่แอดมินตั้งค่า) + Static/Read-Only Org Chart
-import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Settings, ChevronRight, ChevronLeft } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { RefreshCw, Settings, ChevronRight, ChevronLeft, Building2, ChevronDown, X, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import OrgChart from '../components/OrgChart';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { useTranslation } from '../context/LanguageContext';
 import { getEmployees } from '../api/employeeApi';
+import { getDepartments } from '../api/departmentApi';
 import { getSettings } from '../api/settingsApi';
 
 export default function ChartPage() {
   const { t } = useTranslation(); // แปลภาษา
   const [employees, setEmployees]     = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDept, setSelectedDept] = useState('all');
+  const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
+  const deptDropdownRef = useRef(null);
+
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -32,11 +36,13 @@ export default function ChartPage() {
     setLoading(true);
     setError(null);
     try {
-      const [empData, settingsData] = await Promise.all([
+      const [empData, deptData, settingsData] = await Promise.all([
         getEmployees(),
+        getDepartments().catch(() => []),
         getSettings().catch(() => null),
       ]);
       setEmployees(empData || []);
+      if (Array.isArray(deptData)) setDepartments(deptData);
       if (settingsData) setSettings(settingsData);
       setLastUpdated(new Date());
     } catch (err) {
@@ -51,6 +57,102 @@ export default function ChartPage() {
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, [fetchData]);
+
+  // ปิด Dropdown เมื่อคลิกนอกพื้นที่
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(e.target)) {
+        setIsDeptDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // รวมรายชื่อแผนกทั้งหมดจาก API และจากพนักงาน
+  const allDepartmentOptions = useMemo(() => {
+    const map = new Map();
+    departments.forEach((d) => {
+      if (d.name && d.name.trim()) {
+        map.set(d.name.trim().toLowerCase(), {
+          name: d.name.trim(),
+          color: d.color || '#3b82f6',
+        });
+      }
+    });
+    employees.forEach((e) => {
+      if (e.department && e.department.trim()) {
+        const key = e.department.trim().toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, { name: e.department.trim(), color: '#3b82f6' });
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [departments, employees]);
+
+  // ─── กรองพนักงานตามแผนก + ดึงสายผู้บริหารสูงสุด (Alex/CEO) ติดมาด้วย ───
+  const filteredEmployees = useMemo(() => {
+    if (!selectedDept || selectedDept === 'all') {
+      return employees;
+    }
+
+    const empMap = new Map();
+    employees.forEach((e) => empMap.set(e.id, e));
+
+    // 1. หาพนักงานในแผนกเป้าหมาย
+    const targetDeptLower = selectedDept.trim().toLowerCase();
+    const targetEmps = employees.filter((e) => {
+      const matchName = e.department && e.department.trim().toLowerCase() === targetDeptLower;
+      const matchId = e.department_id && String(e.department_id) === String(selectedDept);
+      return matchName || matchId;
+    });
+
+    if (targetEmps.length === 0) {
+      return employees;
+    }
+
+    // 2. เก็บ ID พนักงานเป้าหมาย และเดินย้อนสาย parent_id ขึ้นไปจนถึง Root (CEO / Alex)
+    const keepIds = new Set();
+    targetEmps.forEach((emp) => {
+      keepIds.add(emp.id);
+      let curr = emp;
+      const visited = new Set();
+      while (curr && curr.parent_id && !visited.has(curr.id)) {
+        visited.add(curr.id);
+        const parent = empMap.get(curr.parent_id);
+        if (parent) {
+          keepIds.add(parent.id);
+          curr = parent;
+        } else {
+          break;
+        }
+      }
+    });
+
+    // 3. รวมลูกน้องใต้บังคับบัญชาของคนในแผนกที่ไม่มีการระบุแผนกอื่น
+    const otherDeptNames = new Set(
+      allDepartmentOptions
+        .map((d) => d.name.toLowerCase())
+        .filter((n) => n !== targetDeptLower)
+    );
+
+    let addedMore = true;
+    while (addedMore) {
+      addedMore = false;
+      employees.forEach((emp) => {
+        if (!keepIds.has(emp.id) && emp.parent_id && keepIds.has(emp.parent_id)) {
+          const empDept = emp.department?.trim().toLowerCase();
+          if (!empDept || !otherDeptNames.has(empDept)) {
+            keepIds.add(emp.id);
+            addedMore = true;
+          }
+        }
+      });
+    }
+
+    return employees.filter((e) => keepIds.has(e.id));
+  }, [employees, selectedDept, allDepartmentOptions]);
 
   // คำนวณพื้นหลัง: ถ้ามี bg_image_url ให้นำมาแสดงผล พร้อม overlay opacity
   const bgStyle = settings.bg_image_url
@@ -126,12 +228,122 @@ export default function ChartPage() {
         </div>
 
         {/* Right: Controls & Admin Link */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
+          {/* ─── Department Filter Dropdown ─── */}
+          <div className="relative" ref={deptDropdownRef}>
+            <button
+              onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer select-none ${
+                selectedDept !== 'all'
+                  ? 'bg-blue-600/35 border-blue-400 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.35)]'
+                  : 'bg-white/10 hover:bg-white/15 border-white/15 text-slate-200 hover:text-white'
+              }`}
+              title={t('filter_dept_label')}
+            >
+              <Building2 size={14} className={selectedDept !== 'all' ? 'text-blue-300' : 'text-slate-400'} />
+              <span className="max-w-[130px] truncate font-medium">
+                {selectedDept === 'all' ? t('filter_all_dept_title') : selectedDept}
+              </span>
+              <ChevronDown
+                size={13}
+                className={`transition-transform duration-200 text-slate-400 ${
+                  isDeptDropdownOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isDeptDropdownOpen && (
+              <div
+                className="absolute right-0 mt-2 w-64 rounded-2xl shadow-2xl z-50 overflow-hidden border border-white/15 animate-fade-in"
+                style={{
+                  background: 'rgba(15, 23, 42, 0.96)',
+                  backdropFilter: 'blur(20px)',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1)',
+                }}
+              >
+                <div className="p-2.5 border-b border-white/10 flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3">
+                  <div className="flex items-center gap-1.5">
+                    <Filter size={12} className="text-blue-400" />
+                    <span>{t('filter_dept_label')}</span>
+                  </div>
+                  {selectedDept !== 'all' && (
+                    <button
+                      onClick={() => {
+                        setSelectedDept('all');
+                        setIsDeptDropdownOpen(false);
+                      }}
+                      className="text-blue-400 hover:text-blue-300 font-normal cursor-pointer text-xs transition-colors"
+                    >
+                      {t('filter_clear')}
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-1.5 max-h-72 overflow-y-auto space-y-1">
+                  {/* ตัวเลือก: ทุกแผนก (All) */}
+                  <button
+                    onClick={() => {
+                      setSelectedDept('all');
+                      setIsDeptDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      selectedDept === 'all'
+                        ? 'bg-blue-600/35 text-white border border-blue-500/40'
+                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                      <span>{t('filter_all_dept_title')}</span>
+                    </div>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">
+                      {employees.length}
+                    </span>
+                  </button>
+
+                  {/* รายชื่อแต่ละแผนก */}
+                  {allDepartmentOptions.map((dept) => {
+                    const isSelected = selectedDept.toLowerCase() === dept.name.toLowerCase();
+                    const countInDept = employees.filter(
+                      (e) => e.department && e.department.toLowerCase() === dept.name.toLowerCase()
+                    ).length;
+                    return (
+                      <button
+                        key={dept.name}
+                        onClick={() => {
+                          setSelectedDept(dept.name);
+                          setIsDeptDropdownOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600/35 text-white border border-blue-500/40'
+                            : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: dept.color || '#3b82f6' }}
+                          />
+                          <span className="truncate">{dept.name}</span>
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300 shrink-0 ml-2 font-mono">
+                          {countInDept}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Language Switcher */}
           <LanguageSwitcher />
 
           {lastUpdated && (
-            <span className="text-xs text-slate-400 hidden sm:block min-w-[170px] text-right font-medium select-none">
+            <span className="text-xs text-slate-400 hidden lg:block min-w-[150px] text-right font-medium select-none">
               {t('chart_last_updated')} {lastUpdated.toLocaleTimeString()}
             </span>
           )}
@@ -139,7 +351,7 @@ export default function ChartPage() {
           <button
             onClick={fetchData}
             title={t('refresh')}
-            className="flex items-center justify-center gap-1.5 min-w-[90px] px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer select-none"
+            className="flex items-center justify-center gap-1.5 min-w-[85px] px-3 py-2 rounded-xl text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer select-none"
           >
             <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">{t('refresh')}</span>
@@ -147,7 +359,7 @@ export default function ChartPage() {
 
           <Link
             to="/admin"
-            className="flex items-center justify-center gap-1.5 min-w-[138px] px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-md select-none"
+            className="flex items-center justify-center gap-1.5 min-w-[130px] px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-md select-none"
             style={{
               background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
               boxShadow: '0 4px 12px rgba(37,99,235,0.35)',
@@ -159,6 +371,36 @@ export default function ChartPage() {
           </Link>
         </div>
       </div>
+
+      {/* ─── Active Filter Notification Banner (แสดงเมื่อมีการเลือกแผนก) ─── */}
+      {selectedDept !== 'all' && (
+        <div
+          className="absolute top-20 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2 rounded-2xl text-xs shadow-2xl border animate-fade-in"
+          style={{
+            background: 'rgba(15, 23, 42, 0.90)',
+            borderColor: 'rgba(59, 130, 246, 0.5)',
+            backdropFilter: 'blur(16px)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(59, 130, 246, 0.25)',
+          }}
+        >
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse" />
+          <span className="text-slate-200">
+            {t('filter_active_notice')}: <strong className="text-blue-300 font-bold">{selectedDept}</strong>
+            {' '}
+            <span className="text-slate-400 hidden sm:inline">
+              ({filteredEmployees.length} {t('col_name')} — {t('filter_with_chain')})
+            </span>
+          </span>
+          <button
+            onClick={() => setSelectedDept('all')}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-red-500/20 text-slate-300 hover:text-red-300 border border-white/10 transition-colors text-[11px] cursor-pointer"
+            title={t('filter_clear')}
+          >
+            <X size={12} />
+            <span>{t('filter_clear')}</span>
+          </button>
+        </div>
+      )}
 
       {/* ─── Expand Button (แสดงเมื่อแผงหัวข้อถูกพับเก็บ) ─── */}
       {isHeaderCollapsed && (
@@ -211,7 +453,9 @@ export default function ChartPage() {
           </div>
 
           <p className="text-blue-200 text-sm leading-relaxed opacity-85">
-            {employees.length > 0
+            {selectedDept !== 'all'
+              ? `${filteredEmployees.length} ${t('col_name')} (${selectedDept})`
+              : employees.length > 0
               ? `${employees.length} ${settings.header_subtitle || t('chart_no_data')}`
               : t('chart_no_data')}
           </p>
@@ -243,7 +487,7 @@ export default function ChartPage() {
         style={{ paddingLeft: isHeaderCollapsed ? 0 : 280 }}
       >
         <OrgChart
-          employees={employees}
+          employees={filteredEmployees}
           loading={loading && !error}
           isEditor={false}
           companyName={settings.company_name}
