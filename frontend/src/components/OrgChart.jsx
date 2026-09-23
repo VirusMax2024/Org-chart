@@ -14,13 +14,22 @@ import 'reactflow/dist/style.css';
 import { Download, Plus, Minus, Maximize2, Users, Building2, Crown, Monitor } from 'lucide-react';
 import EmployeeCard from './EmployeeCard';
 import ExportModal from './ExportModal';
+import EmployeeDetailModal from './EmployeeDetailModal';
 
 // ─── Custom Node Component พร้อม React Flow Handles ─────────
 function EmployeeCardNode({ data }) {
   const isRoot = Boolean(data?.isRoot);
 
   return (
-    <div style={{ position: 'relative', cursor: data?.isEditor ? 'grab' : 'default' }}>
+    <div
+      onClick={() => {
+        if (!data?.isEditor && data?.onSelect) {
+          data.onSelect(data);
+        }
+      }}
+      style={{ position: 'relative', cursor: data?.isEditor ? 'grab' : 'pointer' }}
+      className={!data?.isEditor ? 'transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]' : ''}
+    >
       {/* Connector Target (ด้านบน) — รับเส้นเชื่อมจากหัวหน้า */}
       {!isRoot && (
         <Handle
@@ -69,7 +78,7 @@ const V_GAP       = 130;  // ระยะห่างแนวตั้งระ
 const V_STACK_GAP = 40;   // ระยะห่างแนวตั้งระหว่างการ์ดในโหมด Vertical (Single Column)
 
 // ─── Tree Layout Algorithm ────────────────────────────────────
-function computeLayout(employees, isEditor = false) {
+function computeLayout(employees, isEditor = false, onSelect = null) {
   if (!employees || employees.length === 0) {
     return { nodes: [], edges: [] };
   }
@@ -195,7 +204,7 @@ function computeLayout(employees, isEditor = false) {
       id: String(node.id),
       type: 'employeeCard',
       position: { x: nodeX, y: nodeY },
-      data: { ...node, isRoot, isEditor },
+      data: { ...node, isRoot, isEditor, onSelect },
       draggable: isEditor, // ลากได้เฉพาะในโหมด Admin Editor
     });
 
@@ -280,6 +289,8 @@ function computeLayout(employees, isEditor = false) {
 // ─── Main OrgChart Component ──────────────────────────────────
 export default function OrgChart({
   employees = [],
+  allEmployees,
+  departments = [],
   loading = false,
   isEditor = false,
   onNodesUpdate, // Callback ส่งกลับ nodes เมื่อขยับใน Editor
@@ -290,8 +301,22 @@ export default function OrgChart({
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [showMiniMap, setShowMiniMap] = useState(true);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const reactFlowRef = useRef(null);
   const flowWrapperRef = useRef(null);
+
+  // เมื่อคลิกที่การ์ดพนักงานในโหมด View-Only จะเปิด Modal รายละเอียด
+  const handleSelectEmployee = useCallback((empData) => {
+    if (!isEditor) {
+      setSelectedEmployee(empData);
+    }
+  }, [isEditor]);
+
+  const handleNodeClick = useCallback((event, node) => {
+    if (!isEditor && node?.data) {
+      setSelectedEmployee(node.data);
+    }
+  }, [isEditor]);
 
   // คำนวณสถิติสรุปสำหรับ Floating Toolbar
   const deptCount = useMemo(() => {
@@ -311,7 +336,7 @@ export default function OrgChart({
       prevEmpIdsRef.current = '';
       return;
     }
-    const { nodes: newNodes, edges: newEdges } = computeLayout(employees, isEditor);
+    const { nodes: newNodes, edges: newEdges } = computeLayout(employees, isEditor, handleSelectEmployee);
     setNodes(newNodes);
     setEdges(newEdges);
 
@@ -327,7 +352,7 @@ export default function OrgChart({
       }, 60);
       return () => clearTimeout(timer);
     }
-  }, [employees, isEditor, setNodes, setEdges]);
+  }, [employees, isEditor, handleSelectEmployee, setNodes, setEdges]);
 
   // แจ้ง Parent ทราบเมื่อมีการลากขยับ Node
   const handleNodesChange = useCallback(
@@ -395,6 +420,7 @@ export default function OrgChart({
         edges={edges}
         onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         onInit={onInit}
         fitView
@@ -550,6 +576,16 @@ export default function OrgChart({
         companyName={companyName}
         reactFlowWrapperRef={flowWrapperRef}
       />
+
+      {/* ── View-Only Employee Detail Modal (เปิดเมื่อกดที่การ์ดพนักงาน แก้ไขไม่ได้) ── */}
+      {selectedEmployee && (
+        <EmployeeDetailModal
+          employee={selectedEmployee}
+          allEmployees={allEmployees || employees}
+          departments={departments}
+          onClose={() => setSelectedEmployee(null)}
+        />
+      )}
     </>
   );
 }

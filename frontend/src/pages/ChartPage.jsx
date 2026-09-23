@@ -513,6 +513,8 @@ export default function ChartPage() {
       >
         <OrgChart
           employees={filteredEmployees}
+          allEmployees={employees}
+          departments={departments}
           loading={loading && !error}
           isEditor={false}
           companyName={settings.company_name}

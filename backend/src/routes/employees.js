@@ -34,6 +34,8 @@ const formatEmployee = (row) => ({
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM employees ORDER BY id ASC');
+    // แคชผลลัพธ์ที่ CDN Edge 10 วินาที และให้บริการข้อมูล stale ขณะดึงข้อมูลใหม่ เพื่อความเร็วสูงสุด (Speed Optimization)
+    res.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=60');
     res.json({ success: true, data: result.rows.map(formatEmployee) });
   } catch (err) {
     console.error('GET /employees error:', err.message);
@@ -49,6 +51,7 @@ router.get('/:id', async (req, res) => {
     const result = await pool.query('SELECT * FROM employees WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: 'Employee not found' });
+    res.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=60');
     res.json({ success: true, data: formatEmployee(result.rows[0]) });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch employee' });

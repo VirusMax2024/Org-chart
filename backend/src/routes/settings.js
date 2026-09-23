@@ -34,8 +34,10 @@ router.get(['/', ''], async (req, res) => {
         VALUES (1, 'BORCELLE', 'Organizational Structure', 'ORGANIZATIONAL\nSTRUCTURE', 'team members across your organization')
         RETURNING *
       `);
+      res.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
       return res.json({ success: true, data: created.rows[0] });
     }
+    res.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('GET /settings error:', err.message);

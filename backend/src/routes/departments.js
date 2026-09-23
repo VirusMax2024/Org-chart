@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
       ORDER BY d.id ASC
     `);
 
+    res.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('GET /departments error:', err.message);
