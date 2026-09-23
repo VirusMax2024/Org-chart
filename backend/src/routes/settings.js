@@ -12,9 +12,12 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: {
+    fileSize: 10 * 1024 * 1024,   // 10 MB ต่อไฟล์
+    fieldSize: 20 * 1024 * 1024,  // 20 MB ต่อฟิลด์ข้อความ (ป้องกัน error field value too long)
+  },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) cb(null, true);
+    if (file.mimetype && file.mimetype.startsWith('image/')) cb(null, true);
     else cb(new Error('กรุณาอัปโหลดไฟล์รูปภาพเท่านั้น'));
   },
 });

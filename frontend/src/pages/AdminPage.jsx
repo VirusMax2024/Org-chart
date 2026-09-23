@@ -192,19 +192,23 @@ export default function AdminPage() {
       fd.append('header_subtitle', settings.header_subtitle);
       fd.append('bg_overlay_opacity', settings.bg_overlay_opacity);
       
+      // จัดการโลโก้: ส่งไฟล์ใหม่เฉพาะเมื่อมีการเลือกรูปใหม่ หรือส่งค่าว่างหากต้องการลบรูป
       if (logoFile) {
         showToast('🔄 ກຳລັງປັບແຕ່ງຂະໜາດຮູບພາບ / กำลังปรับขนาดรูปภาพ...', 'info');
         const compressedLogo = await compressImage(logoFile, 800, 0.88);
         fd.append('logo', compressedLogo);
-      } else if (settings.company_logo_url) {
-        fd.append('company_logo_url', settings.company_logo_url);
+      } else if (!settings.company_logo_url) {
+        // กรณีผู้ใช้กดลบรูปออก
+        fd.append('company_logo_url', '');
       }
+      // กรณีไม่ได้เปลี่ยนรูป ไม่ต้องส่ง string base64 ซ้ำ เพื่อให้ payload มีขนาดเล็กมากและบันทึกได้เร็ว
 
+      // จัดการภาพพื้นหลัง:
       if (bgFile) {
         const compressedBg = await compressImage(bgFile, 1920, 0.85);
         fd.append('bg_image', compressedBg);
-      } else if (settings.bg_image_url) {
-        fd.append('bg_image_url', settings.bg_image_url);
+      } else if (!settings.bg_image_url) {
+        fd.append('bg_image_url', '');
       }
 
       const updated = await updateSettings(fd);
@@ -212,10 +216,14 @@ export default function AdminPage() {
       setLogoFile(null);
       setBgFile(null);
       if (updated.company_logo_url) setLogoPreview(updated.company_logo_url);
+      else setLogoPreview(null);
       if (updated.bg_image_url) setBgPreview(updated.bg_image_url);
+      else setBgPreview(null);
       showToast('✅ บันทึกการตั้งค่าเว็บไซต์และแบรนด์สำเร็จ');
     } catch (err) {
-      showToast('❌ ไม่สามารถบันทึกการตั้งค่าได้', 'error');
+      console.error('Save settings error:', err);
+      const errMsg = err.response?.data?.message || err.message || 'ไม่สามารถบันทึกการตั้งค่าได้';
+      showToast(`❌ ${errMsg}`, 'error');
     } finally {
       setSettingsLoading(false);
     }
