@@ -93,6 +93,47 @@ export default function ChartPage() {
     }
   }, [settings?.company_name, settings?.company_subtitle, settings?.company_logo_url]);
 
+  // ─── ล็อค Browser Zoom: อนุญาตให้ Zoom ได้เฉพาะบนผัง Org Chart เท่านั้น (Navigation Bar ไม่ขยาย) ───
+  useEffect(() => {
+    // ป้องกัน Cmd/Ctrl + Wheel หรือ Trackpad Pinch-to-zoom นอกพื้นที่ผังองค์กร
+    const handleWheel = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        // ตรวจสอบว่าเคอร์เซอร์อยู่ภายใน Canvas ของ Org Chart หรือไม่
+        const isInsideOrgChart = e.target.closest('.react-flow') || e.target.closest('.react-flow__pane');
+        if (!isInsideOrgChart) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    // ป้องกัน Safari Trackpad Gesture Zoom นอกพื้นที่ผังองค์กร
+    const handleGesture = (e) => {
+      const isInsideOrgChart = e.target.closest('.react-flow') || e.target.closest('.react-flow__pane');
+      if (!isInsideOrgChart) {
+        e.preventDefault();
+      }
+    };
+
+    // ป้องกันคีย์ลัด Cmd/Ctrl + Plus / Minus / 0 ที่จะขยายหน้าเว็บทั้งหมด
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0')) {
+        e.preventDefault();
+      }
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('gesturestart', handleGesture);
+    window.addEventListener('gesturechange', handleGesture);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('gesturestart', handleGesture);
+      window.removeEventListener('gesturechange', handleGesture);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // รวมรายชื่อแผนกทั้งหมดจาก API และจากพนักงาน
   const allDepartmentOptions = useMemo(() => {
     const map = new Map();
@@ -217,13 +258,15 @@ export default function ChartPage() {
         />
       </div>
 
-      {/* ─── Header Bar ─────────────────────────── */}
+      {/* ─── Header Bar (Locked Navigation - Cannot Zoom In/Out) ─── */}
       <div
-        className="relative z-10 flex items-center justify-between px-8 py-4"
+        className="relative z-10 flex items-center justify-between px-8 py-4 select-none"
+        onWheel={(e) => e.stopPropagation()}
         style={{
           background: 'rgba(0,0,0,0.3)',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           backdropFilter: 'blur(12px)',
+          touchAction: 'none',
         }}
       >
         {/* Logo + Company Title */}
@@ -448,7 +491,11 @@ export default function ChartPage() {
           opacity: isHeaderCollapsed ? 0 : 1,
         }}
       >
-        <div className="space-y-4 pointer-events-auto">
+        <div
+          className="space-y-4 pointer-events-auto"
+          onWheel={(e) => e.stopPropagation()}
+          style={{ touchAction: 'none' }}
+        >
           <div className="flex items-center justify-between">
             <div
               className="text-white font-black leading-tight whitespace-pre-line"
