@@ -20,6 +20,15 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  // ล็อค Scroll พื้นหลังเมื่อ Modal เปิดอยู่ เพื่อประสิทธิภาพและความลื่นไหลสูงสุด
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, []);
+
   if (!employee) return null;
 
   // หาข้อมูลหัวหน้า (Supervisor)
@@ -60,18 +69,18 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 animate-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-[3px] animate-modal-overlay"
       onClick={onClose}
-      style={{ backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
+      onWheel={(e) => e.stopPropagation()}
+      style={{ overscrollBehavior: 'contain' }}
     >
       <div
         className="w-full max-w-lg rounded-3xl border border-white/20 shadow-2xl overflow-hidden relative animate-modal-pop"
         onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
         style={{
-          background: 'linear-gradient(145deg, rgba(13, 23, 44, 0.94) 0%, rgba(18, 33, 64, 0.96) 100%)',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 35px rgba(59,130,246,0.2)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
+          background: 'linear-gradient(145deg, #0d172c 0%, #11203d 100%)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(59,130,246,0.15)',
         }}
       >
         {/* Top Decorative Header Accent */}
@@ -174,8 +183,17 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
           </div>
         </div>
 
-        {/* Detail Cards List */}
-        <div className="px-6 pb-6 space-y-3 max-h-[42vh] overflow-y-auto custom-scrollbar">
+        {/* Detail Cards List (Hardware Accelerated Smooth Scroll) */}
+        <div
+          className="px-6 pb-6 space-y-3 max-h-[44vh] overflow-y-auto custom-scrollbar"
+          onWheel={(e) => e.stopPropagation()}
+          style={{
+            overscrollBehavior: 'contain',
+            WebkitOverflowScrolling: 'touch',
+            transform: 'translateZ(0)',
+            willChange: 'scroll-position',
+          }}
+        >
           {/* Contact Details */}
           <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
             <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">

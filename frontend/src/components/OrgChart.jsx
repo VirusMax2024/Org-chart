@@ -428,9 +428,13 @@ export default function OrgChart({
         fitViewOptions={{ padding: 0.25 }}
         minZoom={0.2}
         maxZoom={1.6}
-        nodesDraggable={isEditor}
+        nodesDraggable={isEditor && !selectedEmployee}
         nodesConnectable={false}
-        elementsSelectable={isEditor}
+        elementsSelectable={isEditor && !selectedEmployee}
+        zoomOnScroll={!selectedEmployee}
+        panOnScroll={false}
+        panOnDrag={isEditor ? true : !selectedEmployee}
+        preventScrolling={Boolean(selectedEmployee)}
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
       >
