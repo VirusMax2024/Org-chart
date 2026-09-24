@@ -24,6 +24,8 @@ function AnimatedBeamEdge({
     borderRadius: 18,
   });
 
+  const isEnabled = data?.enabled !== false;
+  const trackColor = data?.trackColor || 'rgba(56, 189, 248, 0.20)';
   const beamColor = data?.color || '#38bdf8';
   const glowColor = data?.glowColor || 'rgba(56, 189, 248, 0.85)';
   const animationDelay = data?.delay || '0s';
@@ -31,49 +33,53 @@ function AnimatedBeamEdge({
 
   return (
     <g className="animated-beam-group">
-      {/* ── 1. Base Static Track (เส้นไกด์สีฟ้าบางเฉียบ คมชัด ไฮเทค) ── */}
+      {/* ── 1. Base Static Track (เส้นทางหลัก คมชัด มินิมอล) ── */}
       <path
         id={id}
         d={edgePath}
         fill="none"
-        stroke="rgba(56, 189, 248, 0.20)"
-        strokeWidth={2}
+        stroke={trackColor}
+        strokeWidth={isEnabled ? 2 : 1.6}
         className="beam-base-track"
       />
 
-      {/* ── 2. Outer Neon Aura Glow (แสงเรืองฟุ้งสีฟ้ารอบตัวลำแสง) ── */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={glowColor}
-        strokeWidth={5}
-        strokeLinecap="round"
-        pathLength={100}
-        strokeDasharray="22 78"
-        className="beam-glow-path"
-        style={{
-          animationDuration: duration,
-          animationDelay,
-          filter: 'blur(3px)',
-        }}
-      />
+      {/* ── 2. Outer Neon Aura Glow (แสดงเมื่อเปิดลำแสงเท่านั้น) ── */}
+      {isEnabled && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={glowColor}
+          strokeWidth={5}
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray="22 78"
+          className="beam-glow-path"
+          style={{
+            animationDuration: duration,
+            animationDelay,
+            filter: 'blur(3px)',
+          }}
+        />
+      )}
 
-      {/* ── 3. High-Intensity Core Laser (แกนลำแสงสีฟ้าคมชัดวิ่งตามเส้นทางจากบนลงล่าง) ── */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={beamColor}
-        strokeWidth={2.4}
-        strokeLinecap="round"
-        pathLength={100}
-        strokeDasharray="18 82"
-        className="beam-core-laser"
-        style={{
-          animationDuration: duration,
-          animationDelay,
-          filter: `drop-shadow(0 0 4px ${beamColor}) drop-shadow(0 0 9px ${glowColor})`,
-        }}
-      />
+      {/* ── 3. High-Intensity Core Laser (แสดงเมื่อเปิดลำแสงเท่านั้น) ── */}
+      {isEnabled && (
+        <path
+          d={edgePath}
+          fill="none"
+          stroke={beamColor}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+          pathLength={100}
+          strokeDasharray="18 82"
+          className="beam-core-laser"
+          style={{
+            animationDuration: duration,
+            animationDelay,
+            filter: `drop-shadow(0 0 4px ${beamColor}) drop-shadow(0 0 9px ${glowColor})`,
+          }}
+        />
+      )}
 
       {/* ── 4. Arrow Head Marker (หัวลูกศรเรืองแสงที่ปลายทาง) ── */}
       {markerEnd && (

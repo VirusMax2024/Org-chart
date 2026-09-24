@@ -11,15 +11,18 @@ import ReactFlow, {
   Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Download, Plus, Minus, Maximize2, Users, Building2, Crown, Monitor } from 'lucide-react';
+import { Download, Plus, Minus, Maximize2, Users, Building2, Crown, Monitor, Sparkles, X, Check } from 'lucide-react';
 import EmployeeCard from './EmployeeCard';
 import ExportModal from './ExportModal';
 import EmployeeDetailModal from './EmployeeDetailModal';
 import AnimatedBeamEdge from './AnimatedBeamEdge';
+import { useTranslation } from '../context/LanguageContext';
 
 // ─── Custom Node Component พร้อม React Flow Handles (Memoized for max performance) ───
 const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
   const isRoot = Boolean(data?.isRoot);
+  const handleColor = data?.handleColor || '#38bdf8';
+  const handleGlow = data?.handleGlow || 'rgba(56, 189, 248, 0.85)';
 
   return (
     <div
@@ -37,12 +40,13 @@ const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
           type="target"
           position={Position.Top}
           style={{
-            background: '#38bdf8',
+            background: handleColor,
             width: 10,
             height: 10,
             border: '2px solid #0f172a',
             top: -5,
-            boxShadow: '0 0 6px rgba(56, 189, 248, 0.85)',
+            boxShadow: `0 0 6px ${handleGlow}`,
+            transition: 'background 0.25s ease, box-shadow 0.25s ease',
           }}
         />
       )}
@@ -55,12 +59,13 @@ const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
         type="source"
         position={Position.Bottom}
         style={{
-          background: '#38bdf8',
+          background: handleColor,
           width: 10,
           height: 10,
           border: '2px solid #0f172a',
           bottom: -5,
-          boxShadow: '0 0 6px rgba(56, 189, 248, 0.85)',
+          boxShadow: `0 0 6px ${handleGlow}`,
+          transition: 'background 0.25s ease, box-shadow 0.25s ease',
         }}
       />
     </div>
@@ -75,43 +80,96 @@ const edgeTypes = {
   animatedBeam: AnimatedBeamEdge,
 };
 
-// ─── คำนวณสีฟ้านีออนและสเต็ปเวลาแบบ Waterfall ตามสายบังคับบัญชา ───
-function getBeamConfig(rank, depth = 0, totalDuration = 4.0) {
+// ─── คำนวณสีและการเปิด/ปิดของ Animated Beam ตามการตั้งค่าของผู้ใช้ ───
+function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan', enabled = true) {
   const r = String(rank || '').toUpperCase();
   const delay = `${(depth * 0.80).toFixed(2)}s`;
   const duration = `${totalDuration.toFixed(2)}s`;
 
-  // G1: ระดับสูงสุด / ผู้บริหารสูงสุด — ลำแสงสีฟ้าครามสว่างประกายสูงสุด (Cyan Aqua Neon)
-  if (r === 'G1') {
+  // กรณีปิดเส้นแสง (Static Lines)
+  if (!enabled) {
     return {
-      color: '#38bdf8',
-      glowColor: 'rgba(56, 189, 248, 0.95)',
+      enabled: false,
+      color: 'transparent',
+      glowColor: 'transparent',
+      trackColor: 'rgba(148, 163, 184, 0.28)',
       duration,
       delay,
     };
   }
-  // G2: ผู้บริหารระดับสูง (C-Suite) — ลำแสงสีฟ้าสดใสทรงพลัง (Sky Blue)
-  if (r === 'G2') {
+
+  // 1. สีขาว (Pure White / Ice Silver)
+  if (colorMode === 'white') {
     return {
-      color: '#60a5fa',
-      glowColor: 'rgba(96, 165, 250, 0.90)',
+      enabled: true,
+      color: '#ffffff',
+      glowColor: 'rgba(255, 255, 255, 0.90)',
+      trackColor: 'rgba(255, 255, 255, 0.22)',
       duration,
       delay,
     };
   }
-  // G3: ผู้จัดการและหัวหน้าสายงาน — ลำแสงสีฟ้าเข้มคมชัด (Electric Deep Sky)
-  if (r === 'G3') {
+
+  // 2. สีทอง (Luxury Gold 24K — สไตล์ EASY GOLD)
+  if (colorMode === 'gold') {
     return {
-      color: '#38bdf8',
-      glowColor: 'rgba(56, 189, 248, 0.85)',
+      enabled: true,
+      color: '#fbbf24',
+      glowColor: 'rgba(251, 191, 36, 0.90)',
+      trackColor: 'rgba(245, 158, 11, 0.22)',
       duration,
       delay,
     };
   }
-  // G4 / G5 / พนักงานทั่วไป — ลำแสงสีฟ้านีออนโมเดิร์น (Classic Radiant Cyan)
+
+  // 3. หลากสีสัน Colorful (ตามลำดับขั้น Rank เหมือนเวอร์ชันแรก)
+  if (colorMode === 'colorful') {
+    if (r === 'G1') {
+      return {
+        enabled: true,
+        color: '#fef08a',
+        glowColor: 'rgba(251, 191, 36, 0.95)',
+        trackColor: 'rgba(251, 191, 36, 0.25)',
+        duration,
+        delay,
+      };
+    }
+    if (r === 'G2') {
+      return {
+        enabled: true,
+        color: '#38bdf8',
+        glowColor: 'rgba(56, 189, 248, 0.90)',
+        trackColor: 'rgba(56, 189, 248, 0.22)',
+        duration,
+        delay,
+      };
+    }
+    if (r === 'G3') {
+      return {
+        enabled: true,
+        color: '#c084fc',
+        glowColor: 'rgba(192, 132, 252, 0.90)',
+        trackColor: 'rgba(192, 132, 252, 0.22)',
+        duration,
+        delay,
+      };
+    }
+    return {
+      enabled: true,
+      color: '#34d399',
+      glowColor: 'rgba(52, 211, 153, 0.90)',
+      trackColor: 'rgba(52, 211, 153, 0.22)',
+      duration,
+      delay,
+    };
+  }
+
+  // 4. สีฟ้า (Cyan Sky Blue — ค่าเริ่มต้น)
   return {
+    enabled: true,
     color: '#38bdf8',
-    glowColor: 'rgba(56, 189, 248, 0.80)',
+    glowColor: 'rgba(56, 189, 248, 0.90)',
+    trackColor: 'rgba(56, 189, 248, 0.20)',
     duration,
     delay,
   };
@@ -125,7 +183,7 @@ const V_GAP       = 130;  // ระยะห่างแนวตั้งระ
 const V_STACK_GAP = 40;   // ระยะห่างแนวตั้งระหว่างการ์ดในโหมด Vertical (Single Column)
 
 // ─── Tree Layout Algorithm ────────────────────────────────────
-function computeLayout(employees, isEditor = false, onSelect = null) {
+function computeLayout(employees, isEditor = false, onSelect = null, beamSettings = { enabled: true, colorMode: 'cyan' }) {
   if (!employees || employees.length === 0) {
     return { nodes: [], edges: [] };
   }
@@ -269,11 +327,29 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
     const nodeX = hasCustomPos ? parseFloat(node.position_x) : x + (subtreeWidth - CARD_WIDTH) / 2;
     const nodeY = hasCustomPos ? parseFloat(node.position_y) : y;
 
+    // คำนวณสี Handle ตามการเปิดปิดและโหมดสี
+    let handleColor = '#38bdf8';
+    let handleGlow = 'rgba(56, 189, 248, 0.85)';
+    if (!beamSettings.enabled) {
+      handleColor = '#64748b';
+      handleGlow = 'rgba(100, 116, 139, 0.3)';
+    } else if (beamSettings.colorMode === 'white') {
+      handleColor = '#ffffff';
+      handleGlow = 'rgba(255, 255, 255, 0.85)';
+    } else if (beamSettings.colorMode === 'gold') {
+      handleColor = '#fbbf24';
+      handleGlow = 'rgba(251, 191, 36, 0.85)';
+    } else if (beamSettings.colorMode === 'colorful') {
+      const rankConfig = getBeamConfig(node.rank, 0, 4.0, 'colorful', true);
+      handleColor = rankConfig.color;
+      handleGlow = rankConfig.glowColor;
+    }
+
     resultNodes.push({
       id: String(node.id),
       type: 'employeeCard',
       position: { x: nodeX, y: nodeY },
-      data: { ...node, isRoot, isEditor, onSelect },
+      data: { ...node, isRoot, isEditor, onSelect, handleColor, handleGlow },
       draggable: isEditor, // ลากได้เฉพาะในโหมด Admin Editor
     });
 
@@ -289,21 +365,23 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
           // จัดกึ่งกลางลูกน้องให้อยู่ตรงแนวเดียวกับหัวหน้า
           const childX = x + (subtreeWidth - childSubtreeWidth) / 2;
 
-          const beam = getBeamConfig(node.rank, depth, totalCycleDuration);
+          const beam = getBeamConfig(node.rank, depth, totalCycleDuration, beamSettings.colorMode, beamSettings.enabled);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
             target: String(child.id),
             type: 'animatedBeam',
             data: {
+              enabled: beam.enabled,
               color: beam.color,
               glowColor: beam.glowColor,
+              trackColor: beam.trackColor,
               duration: beam.duration,
               delay: beam.delay,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: beam.color,
+              color: beam.enabled ? beam.color : (beam.trackColor || '#64748b'),
               width: 12,
               height: 12,
             },
@@ -321,21 +399,23 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
         const childY = nodeY + CARD_HEIGHT + V_GAP;
 
         node.children.forEach((child) => {
-          const beam = getBeamConfig(node.rank, depth, totalCycleDuration);
+          const beam = getBeamConfig(node.rank, depth, totalCycleDuration, beamSettings.colorMode, beamSettings.enabled);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
             target: String(child.id),
             type: 'animatedBeam',
             data: {
+              enabled: beam.enabled,
               color: beam.color,
               glowColor: beam.glowColor,
+              trackColor: beam.trackColor,
               duration: beam.duration,
               delay: beam.delay,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: beam.color,
+              color: beam.enabled ? beam.color : (beam.trackColor || '#64748b'),
               width: 12,
               height: 12,
             },
@@ -370,6 +450,7 @@ export default function OrgChart({
   instanceRef,   // Ref สำหรับควบคุม reactFlowInstance จากภายนอก
   companyName = 'BORCELLE',
 }) {
+  const { t } = useTranslation();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -377,6 +458,66 @@ export default function OrgChart({
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const reactFlowRef = useRef(null);
   const flowWrapperRef = useRef(null);
+
+  // จัดการการเปิด-ปิด และการเลือกสีเส้นแสง (จำค่าใน localStorage)
+  const [beamEnabled, setBeamEnabled] = useState(() => {
+    try {
+      const saved = localStorage.getItem('org_chart_beam_enabled');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [beamColorMode, setBeamColorMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('org_chart_beam_color');
+      return ['cyan', 'white', 'gold', 'colorful'].includes(saved) ? saved : 'cyan';
+    } catch {
+      return 'cyan';
+    }
+  });
+
+  const [beamSettingsOpen, setBeamSettingsOpen] = useState(false);
+  const beamPopoverRef = useRef(null);
+
+  // ปิด Popover เมื่อคลิกนอกขอบเขต
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (beamPopoverRef.current && !beamPopoverRef.current.contains(event.target)) {
+        setBeamSettingsOpen(false);
+      }
+    }
+    if (beamSettingsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [beamSettingsOpen]);
+
+  const handleToggleBeam = useCallback(() => {
+    setBeamEnabled((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('org_chart_beam_enabled', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const handleChangeBeamColor = useCallback((mode) => {
+    setBeamColorMode(mode);
+    try {
+      localStorage.setItem('org_chart_beam_color', mode);
+    } catch {}
+    if (!beamEnabled) {
+      setBeamEnabled(true);
+      try {
+        localStorage.setItem('org_chart_beam_enabled', 'true');
+      } catch {}
+    }
+  }, [beamEnabled]);
 
   // เมื่อคลิกที่การ์ดพนักงานในโหมด View-Only จะเปิด Modal รายละเอียด
   const handleSelectEmployee = useCallback((empData) => {
@@ -400,7 +541,7 @@ export default function OrgChart({
     return employees.filter((e) => !e.parent_id).length;
   }, [employees]);
 
-  // คำนวณ Layout เมื่อ employees เปลี่ยน
+  // คำนวณ Layout เมื่อ employees หรือการตั้งค่าเส้นแสงเปลี่ยน
   const prevEmpIdsRef = useRef('');
   useEffect(() => {
     if (!employees || employees.length === 0) {
@@ -409,7 +550,12 @@ export default function OrgChart({
       prevEmpIdsRef.current = '';
       return;
     }
-    const { nodes: newNodes, edges: newEdges } = computeLayout(employees, isEditor, handleSelectEmployee);
+    const { nodes: newNodes, edges: newEdges } = computeLayout(
+      employees,
+      isEditor,
+      handleSelectEmployee,
+      { enabled: beamEnabled, colorMode: beamColorMode }
+    );
     setNodes(newNodes);
     setEdges(newEdges);
 
@@ -425,7 +571,7 @@ export default function OrgChart({
       }, 60);
       return () => clearTimeout(timer);
     }
-  }, [employees, isEditor, handleSelectEmployee, setNodes, setEdges]);
+  }, [employees, isEditor, handleSelectEmployee, beamEnabled, beamColorMode, setNodes, setEdges]);
 
   // แจ้ง Parent ทราบเมื่อมีการลากขยับ Node
   const handleNodesChange = useCallback(
@@ -612,7 +758,7 @@ export default function OrgChart({
             {/* เส้นคั่น 2 */}
             <div className="hidden sm:block h-5 w-px bg-white/15" />
 
-            {/* ฝั่งขวา: ปุ่ม Export + ไอคอน Minimap */}
+            {/* ฝั่งขวา: ปุ่ม Export + ตั้งค่าลำแสง + ไอคอน Minimap */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -627,6 +773,161 @@ export default function OrgChart({
                 <Download size={13} />
                 <span>Export</span>
               </button>
+
+              {/* ── ปุ่มเปิด/ปิด และตั้งค่าสีเส้นแสงแอนิเมชัน ── */}
+              <div className="relative" ref={beamPopoverRef}>
+                <button
+                  type="button"
+                  onClick={() => setBeamSettingsOpen((v) => !v)}
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                    beamEnabled
+                      ? 'bg-sky-500/20 border-sky-500/40 text-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                  }`}
+                  title={t('beam_control_title')}
+                >
+                  <Sparkles size={15} className={beamEnabled ? 'animate-pulse' : ''} />
+                </button>
+
+                {/* Popover Card การตั้งค่าลำแสง */}
+                {beamSettingsOpen && (
+                  <div
+                    className="absolute bottom-11 right-0 w-64 rounded-2xl p-3.5 shadow-2xl z-50 text-xs"
+                    style={{
+                      background: 'rgba(11, 21, 40, 0.96)',
+                      backdropFilter: 'blur(20px)',
+                      WebkitBackdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.2)',
+                    }}
+                  >
+                    {/* Popover Header */}
+                    <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-white/10">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className={beamEnabled ? 'text-sky-400' : 'text-slate-400'} />
+                        <span className="font-bold text-white tracking-wide">{t('beam_control_title')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setBeamSettingsOpen(false)}
+                        className="w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+
+                    {/* สวิตช์ เปิด/ปิด ลำแสง */}
+                    <div className="flex items-center justify-between py-1 mb-3">
+                      <div className="flex flex-col">
+                        <span className="text-slate-200 font-semibold">{t('beam_toggle')}</span>
+                        <span className="text-[10px] text-slate-400">
+                          {beamEnabled ? t('beam_enabled') : t('beam_disabled')}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleToggleBeam}
+                        className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          beamEnabled ? 'bg-sky-500 shadow-[0_0_10px_rgba(56,189,248,0.5)]' : 'bg-slate-700'
+                        }`}
+                        title={beamEnabled ? t('beam_disabled') : t('beam_enabled')}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            beamEnabled ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* รายการเลือกสี 4 สี */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
+                        {t('beam_color_label')}
+                      </span>
+
+                      {/* 1. สีฟ้า Cyan Sky */}
+                      <button
+                        type="button"
+                        onClick={() => handleChangeBeamColor('cyan')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                          beamColorMode === 'cyan' && beamEnabled
+                            ? 'bg-sky-500/20 border-sky-400 text-sky-200 shadow-[0_0_10px_rgba(56,189,248,0.25)]'
+                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+                          <span className="font-medium">{t('beam_color_cyan')}</span>
+                        </div>
+                        {beamColorMode === 'cyan' && beamEnabled && (
+                          <Check size={13} className="text-sky-400 font-bold" />
+                        )}
+                      </button>
+
+                      {/* 2. สีขาว Pure White */}
+                      <button
+                        type="button"
+                        onClick={() => handleChangeBeamColor('white')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                          beamColorMode === 'white' && beamEnabled
+                            ? 'bg-white/15 border-white text-white shadow-[0_0_10px_rgba(255,255,255,0.3)]'
+                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-white shadow-[0_0_8px_#ffffff]" />
+                          <span className="font-medium">{t('beam_color_white')}</span>
+                        </div>
+                        {beamColorMode === 'white' && beamEnabled && (
+                          <Check size={13} className="text-white font-bold" />
+                        )}
+                      </button>
+
+                      {/* 3. สีทอง Luxury Gold */}
+                      <button
+                        type="button"
+                        onClick={() => handleChangeBeamColor('gold')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                          beamColorMode === 'gold' && beamEnabled
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-200 shadow-[0_0_10px_rgba(251,191,36,0.25)]'
+                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]" />
+                          <span className="font-medium">{t('beam_color_gold')}</span>
+                        </div>
+                        {beamColorMode === 'gold' && beamEnabled && (
+                          <Check size={13} className="text-amber-400 font-bold" />
+                        )}
+                      </button>
+
+                      {/* 4. หลากสีสัน Colorful */}
+                      <button
+                        type="button"
+                        onClick={() => handleChangeBeamColor('colorful')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                          beamColorMode === 'colorful' && beamEnabled
+                            ? 'bg-purple-500/20 border-purple-400 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.25)]'
+                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3 h-3 rounded-full shadow-[0_0_8px_rgba(168,85,247,0.8)]"
+                            style={{ background: 'linear-gradient(135deg, #fbbf24, #38bdf8, #c084fc)' }}
+                          />
+                          <span className="font-medium">{t('beam_color_colorful')}</span>
+                        </div>
+                        {beamColorMode === 'colorful' && beamEnabled && (
+                          <Check size={13} className="text-purple-400 font-bold" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
