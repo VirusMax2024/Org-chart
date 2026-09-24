@@ -12,7 +12,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Download, Plus, Minus, Maximize2, Users, Building2, Crown, Monitor, Sparkles, X, Check } from 'lucide-react';
-import EmployeeCard from './EmployeeCard';
+import EmployeeCard, { resolveLevel, LEVEL_TYPES } from './EmployeeCard';
 import ExportModal from './ExportModal';
 import EmployeeDetailModal from './EmployeeDetailModal';
 import AnimatedBeamEdge from './AnimatedBeamEdge';
@@ -81,8 +81,9 @@ const edgeTypes = {
 };
 
 // ─── คำนวณสีและการเปิด/ปิดของ Animated Beam ตามการตั้งค่าของผู้ใช้ ───
-function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan', enabled = true) {
-  const r = String(rank || '').toUpperCase();
+function getBeamConfig(nodeOrRank, depth = 0, totalDuration = 4.0, colorMode = 'by_rank', enabled = true, isRoot = false) {
+  const node = typeof nodeOrRank === 'object' && nodeOrRank !== null ? nodeOrRank : { rank: nodeOrRank };
+  const r = String(node.rank || '').toUpperCase();
   const delay = `${(depth * 0.80).toFixed(2)}s`;
   const duration = `${totalDuration.toFixed(2)}s`;
 
@@ -98,6 +99,96 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
     };
   }
 
+  // ── 0. สีตามการ์ด (By Card Rank / Level) ──
+  // G1 (หัวหน้า/CEO) = รุ้ง Prismatic | G2 = ไดมอนด์ Sparkling | G3 = ทองคำแท้ 24K | G4 = เงินพรีเมียม
+  if (colorMode === 'by_rank') {
+    const level = resolveLevel({
+      level: node.level,
+      role: node.role,
+      rank: node.rank,
+      position: node.position || '',
+      isRoot: isRoot || Boolean(node.isRoot),
+    });
+
+    if (level === LEVEL_TYPES.LEGEND) {
+      return {
+        enabled: true,
+        color: '#ff0080',
+        colorGradient: 'beam-grad-rainbow',
+        glowColor: 'rgba(255, 0, 128, 0.95)',
+        filter: 'drop-shadow(0 0 6px #ff0080) drop-shadow(0 0 12px #00bfff) drop-shadow(0 0 16px #a855f7)',
+        trackColor: 'rgba(255, 0, 128, 0.22)',
+        arrowColor: '#ff0080',
+        handleColor: '#ff0080',
+        handleGlow: 'rgba(255, 0, 128, 0.9)',
+        duration,
+        delay,
+      };
+    }
+
+    if (level === LEVEL_TYPES.DIAMOND) {
+      return {
+        enabled: true,
+        color: '#38bdf8',
+        colorGradient: 'beam-grad-diamond',
+        glowColor: 'rgba(56, 189, 248, 0.90)',
+        filter: 'drop-shadow(0 0 5px #38bdf8) drop-shadow(0 0 10px #e879f9)',
+        trackColor: 'rgba(56, 189, 248, 0.22)',
+        arrowColor: '#38bdf8',
+        handleColor: '#38bdf8',
+        handleGlow: 'rgba(56, 189, 248, 0.9)',
+        duration,
+        delay,
+      };
+    }
+
+    if (level === LEVEL_TYPES.GOLD) {
+      return {
+        enabled: true,
+        color: '#fbbf24',
+        colorGradient: 'beam-grad-gold',
+        glowColor: 'rgba(251, 191, 36, 0.90)',
+        filter: 'drop-shadow(0 0 5px #fbbf24) drop-shadow(0 0 10px #f59e0b)',
+        trackColor: 'rgba(245, 158, 11, 0.22)',
+        arrowColor: '#fbbf24',
+        handleColor: '#fbbf24',
+        handleGlow: 'rgba(251, 191, 36, 0.9)',
+        duration,
+        delay,
+      };
+    }
+
+    if (level === LEVEL_TYPES.SILVER) {
+      return {
+        enabled: true,
+        color: '#ffffff',
+        colorGradient: 'beam-grad-silver',
+        glowColor: 'rgba(226, 232, 240, 0.90)',
+        filter: 'drop-shadow(0 0 5px #ffffff) drop-shadow(0 0 8px #94a3b8)',
+        trackColor: 'rgba(203, 213, 225, 0.25)',
+        arrowColor: '#cbd5e1',
+        handleColor: '#ffffff',
+        handleGlow: 'rgba(255, 255, 255, 0.9)',
+        duration,
+        delay,
+      };
+    }
+
+    // G5 / Standard
+    return {
+      enabled: true,
+      color: '#38bdf8',
+      glowColor: 'rgba(56, 189, 248, 0.85)',
+      filter: 'drop-shadow(0 0 4px #38bdf8) drop-shadow(0 0 8px rgba(56, 189, 248, 0.7))',
+      trackColor: 'rgba(56, 189, 248, 0.20)',
+      arrowColor: '#38bdf8',
+      handleColor: '#38bdf8',
+      handleGlow: 'rgba(56, 189, 248, 0.85)',
+      duration,
+      delay,
+    };
+  }
+
   // 1. สีขาว (Pure White / Ice Silver)
   if (colorMode === 'white') {
     return {
@@ -105,6 +196,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
       color: '#ffffff',
       glowColor: 'rgba(255, 255, 255, 0.90)',
       trackColor: 'rgba(255, 255, 255, 0.22)',
+      arrowColor: '#ffffff',
+      handleColor: '#ffffff',
+      handleGlow: 'rgba(255, 255, 255, 0.9)',
       duration,
       delay,
     };
@@ -117,6 +211,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
       color: '#fbbf24',
       glowColor: 'rgba(251, 191, 36, 0.90)',
       trackColor: 'rgba(245, 158, 11, 0.22)',
+      arrowColor: '#fbbf24',
+      handleColor: '#fbbf24',
+      handleGlow: 'rgba(251, 191, 36, 0.9)',
       duration,
       delay,
     };
@@ -130,6 +227,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
         color: '#fef08a',
         glowColor: 'rgba(251, 191, 36, 0.95)',
         trackColor: 'rgba(251, 191, 36, 0.25)',
+        arrowColor: '#fef08a',
+        handleColor: '#fef08a',
+        handleGlow: 'rgba(251, 191, 36, 0.9)',
         duration,
         delay,
       };
@@ -140,6 +240,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
         color: '#38bdf8',
         glowColor: 'rgba(56, 189, 248, 0.90)',
         trackColor: 'rgba(56, 189, 248, 0.22)',
+        arrowColor: '#38bdf8',
+        handleColor: '#38bdf8',
+        handleGlow: 'rgba(56, 189, 248, 0.9)',
         duration,
         delay,
       };
@@ -150,6 +253,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
         color: '#c084fc',
         glowColor: 'rgba(192, 132, 252, 0.90)',
         trackColor: 'rgba(192, 132, 252, 0.22)',
+        arrowColor: '#c084fc',
+        handleColor: '#c084fc',
+        handleGlow: 'rgba(192, 132, 252, 0.9)',
         duration,
         delay,
       };
@@ -159,6 +265,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
       color: '#34d399',
       glowColor: 'rgba(52, 211, 153, 0.90)',
       trackColor: 'rgba(52, 211, 153, 0.22)',
+      arrowColor: '#34d399',
+      handleColor: '#34d399',
+      handleGlow: 'rgba(52, 211, 153, 0.9)',
       duration,
       delay,
     };
@@ -170,6 +279,9 @@ function getBeamConfig(rank, depth = 0, totalDuration = 4.0, colorMode = 'cyan',
     color: '#38bdf8',
     glowColor: 'rgba(56, 189, 248, 0.90)',
     trackColor: 'rgba(56, 189, 248, 0.20)',
+    arrowColor: '#38bdf8',
+    handleColor: '#38bdf8',
+    handleGlow: 'rgba(56, 189, 248, 0.85)',
     duration,
     delay,
   };
@@ -328,22 +440,9 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
     const nodeY = hasCustomPos ? parseFloat(node.position_y) : y;
 
     // คำนวณสี Handle ตามการเปิดปิดและโหมดสี
-    let handleColor = '#38bdf8';
-    let handleGlow = 'rgba(56, 189, 248, 0.85)';
-    if (!beamSettings.enabled) {
-      handleColor = '#64748b';
-      handleGlow = 'rgba(100, 116, 139, 0.3)';
-    } else if (beamSettings.colorMode === 'white') {
-      handleColor = '#ffffff';
-      handleGlow = 'rgba(255, 255, 255, 0.85)';
-    } else if (beamSettings.colorMode === 'gold') {
-      handleColor = '#fbbf24';
-      handleGlow = 'rgba(251, 191, 36, 0.85)';
-    } else if (beamSettings.colorMode === 'colorful') {
-      const rankConfig = getBeamConfig(node.rank, 0, 4.0, 'colorful', true);
-      handleColor = rankConfig.color;
-      handleGlow = rankConfig.glowColor;
-    }
+    const nodeBeam = getBeamConfig(node, 0, 4.0, beamSettings.colorMode, beamSettings.enabled, isRoot);
+    const handleColor = nodeBeam.handleColor || '#38bdf8';
+    const handleGlow = nodeBeam.handleGlow || 'rgba(56, 189, 248, 0.85)';
 
     resultNodes.push({
       id: String(node.id),
@@ -365,7 +464,7 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
           // จัดกึ่งกลางลูกน้องให้อยู่ตรงแนวเดียวกับหัวหน้า
           const childX = x + (subtreeWidth - childSubtreeWidth) / 2;
 
-          const beam = getBeamConfig(node.rank, depth, totalCycleDuration, beamSettings.colorMode, beamSettings.enabled);
+          const beam = getBeamConfig(node, depth, totalCycleDuration, beamSettings.colorMode, beamSettings.enabled, isRoot);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
@@ -374,6 +473,8 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
             data: {
               enabled: beam.enabled,
               color: beam.color,
+              colorGradient: beam.colorGradient,
+              filter: beam.filter,
               glowColor: beam.glowColor,
               trackColor: beam.trackColor,
               duration: beam.duration,
@@ -381,7 +482,7 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: beam.enabled ? beam.color : (beam.trackColor || '#64748b'),
+              color: beam.enabled ? (beam.arrowColor || beam.color) : (beam.trackColor || '#64748b'),
               width: 12,
               height: 12,
             },
@@ -399,7 +500,7 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
         const childY = nodeY + CARD_HEIGHT + V_GAP;
 
         node.children.forEach((child) => {
-          const beam = getBeamConfig(node.rank, depth, totalCycleDuration, beamSettings.colorMode, beamSettings.enabled);
+          const beam = getBeamConfig(node, depth, totalCycleDuration, beamSettings.colorMode, beamSettings.enabled, isRoot);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
@@ -408,6 +509,8 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
             data: {
               enabled: beam.enabled,
               color: beam.color,
+              colorGradient: beam.colorGradient,
+              filter: beam.filter,
               glowColor: beam.glowColor,
               trackColor: beam.trackColor,
               duration: beam.duration,
@@ -415,7 +518,7 @@ function computeLayout(employees, isEditor = false, onSelect = null, beamSetting
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: beam.enabled ? beam.color : (beam.trackColor || '#64748b'),
+              color: beam.enabled ? (beam.arrowColor || beam.color) : (beam.trackColor || '#64748b'),
               width: 12,
               height: 12,
             },
@@ -472,9 +575,9 @@ export default function OrgChart({
   const [beamColorMode, setBeamColorMode] = useState(() => {
     try {
       const saved = localStorage.getItem('org_chart_beam_color');
-      return ['cyan', 'white', 'gold', 'colorful'].includes(saved) ? saved : 'cyan';
+      return ['by_rank', 'cyan', 'white', 'gold', 'colorful'].includes(saved) ? saved : 'by_rank';
     } catch {
-      return 'cyan';
+      return 'by_rank';
     }
   });
 
@@ -792,7 +895,7 @@ export default function OrgChart({
                 {/* Popover Card การตั้งค่าลำแสง */}
                 {beamSettingsOpen && (
                   <div
-                    className="absolute bottom-11 right-0 w-64 rounded-2xl p-3.5 shadow-2xl z-50 text-xs"
+                    className="absolute bottom-11 right-0 w-72 rounded-2xl p-3.5 shadow-2xl z-50 text-xs"
                     style={{
                       background: 'rgba(11, 21, 40, 0.96)',
                       backdropFilter: 'blur(20px)',
@@ -840,11 +943,39 @@ export default function OrgChart({
                       </button>
                     </div>
 
-                    {/* รายการเลือกสี 4 สี */}
+                    {/* รายการเลือกสี */}
                     <div className="space-y-1.5">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">
                         {t('beam_color_label')}
                       </span>
+
+                      {/* 🌟 0. สีตามการ์ด By Card Rank (G1 รุ้ง / G2 เพชร / G3 ทอง / G4 เงิน) */}
+                      <button
+                        type="button"
+                        onClick={() => handleChangeBeamColor('by_rank')}
+                        className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl border transition-all cursor-pointer ${
+                          beamColorMode === 'by_rank' && beamEnabled
+                            ? 'bg-gradient-to-r from-pink-500/20 via-sky-500/20 to-amber-500/20 border-pink-400/80 text-white shadow-[0_0_14px_rgba(255,0,128,0.35)]'
+                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full shadow-[0_0_8px_rgba(255,0,128,0.8)] flex-shrink-0"
+                            style={{
+                              background: 'linear-gradient(135deg, #ff0080, #ffd700, #00bfff, #cbd5e1)',
+                            }}
+                          />
+                          <div className="flex flex-col text-left">
+                            <span className="font-bold text-white text-[11px] leading-tight">
+                              {t('beam_color_by_rank')}
+                            </span>
+                          </div>
+                        </div>
+                        {beamColorMode === 'by_rank' && beamEnabled && (
+                          <Check size={13} className="text-pink-400 font-bold ml-1 flex-shrink-0" />
+                        )}
+                      </button>
 
                       {/* 1. สีฟ้า Cyan Sky */}
                       <button

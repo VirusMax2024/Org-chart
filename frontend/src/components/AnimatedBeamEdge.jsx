@@ -29,10 +29,40 @@ function AnimatedBeamEdge({
   const beamColor = data?.color || '#38bdf8';
   const glowColor = data?.glowColor || 'rgba(56, 189, 248, 0.85)';
   const animationDelay = data?.delay || '0s';
-  const duration = data?.duration || '4.0s';
+  const strokeColor = data?.colorGradient ? `url(#${data.colorGradient})` : beamColor;
+  const shadowFilter = data?.filter || `drop-shadow(0 0 4px ${beamColor}) drop-shadow(0 0 9px ${glowColor})`;
 
   return (
     <g className="animated-beam-group">
+      <defs>
+        {/* ลำแสงสีรุ้ง Prismatic Rainbow สำหรับระดับ G1 / Legend */}
+        <linearGradient id="beam-grad-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ff0080" />
+          <stop offset="25%" stopColor="#ff8c00" />
+          <stop offset="50%" stopColor="#ffd700" />
+          <stop offset="75%" stopColor="#00bfff" />
+          <stop offset="100%" stopColor="#a855f7" />
+        </linearGradient>
+        {/* ลำแสงสีเพชร Sparkling Diamond สำหรับระดับ G2 */}
+        <linearGradient id="beam-grad-diamond" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="50%" stopColor="#e879f9" />
+          <stop offset="100%" stopColor="#38bdf8" />
+        </linearGradient>
+        {/* ลำแสงสีทองคำแท้ 24K สำหรับระดับ G3 */}
+        <linearGradient id="beam-grad-gold" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#fef08a" />
+          <stop offset="50%" stopColor="#fbbf24" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+        {/* ลำแสงสีเงินพรีเมียม สำหรับระดับ G4 */}
+        <linearGradient id="beam-grad-silver" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="50%" stopColor="#cbd5e1" />
+          <stop offset="100%" stopColor="#94a3b8" />
+        </linearGradient>
+      </defs>
+
       {/* ── 1. Base Static Track (เส้นทางหลัก คมชัด มินิมอล) ── */}
       <path
         id={id}
@@ -48,7 +78,7 @@ function AnimatedBeamEdge({
         <path
           d={edgePath}
           fill="none"
-          stroke={glowColor}
+          stroke={data?.colorGradient ? strokeColor : glowColor}
           strokeWidth={5}
           strokeLinecap="round"
           pathLength={100}
@@ -67,7 +97,7 @@ function AnimatedBeamEdge({
         <path
           d={edgePath}
           fill="none"
-          stroke={beamColor}
+          stroke={strokeColor}
           strokeWidth={2.4}
           strokeLinecap="round"
           pathLength={100}
@@ -76,7 +106,7 @@ function AnimatedBeamEdge({
           style={{
             animationDuration: duration,
             animationDelay,
-            filter: `drop-shadow(0 0 4px ${beamColor}) drop-shadow(0 0 9px ${glowColor})`,
+            filter: shadowFilter,
           }}
         />
       )}
