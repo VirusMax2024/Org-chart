@@ -3,6 +3,32 @@
 import React, { memo } from 'react';
 import { getSmoothStepPath, Position } from 'reactflow';
 
+// สี Gradient Preset แยกตามระดับหรือธีม
+const GRADIENT_DEFINITIONS = {
+  'beam-grad-rainbow': [
+    { offset: '0%', color: '#ff0080' },
+    { offset: '25%', color: '#ff8c00' },
+    { offset: '50%', color: '#ffd700' },
+    { offset: '75%', color: '#00bfff' },
+    { offset: '100%', color: '#a855f7' },
+  ],
+  'beam-grad-diamond': [
+    { offset: '0%', color: '#38bdf8' },
+    { offset: '50%', color: '#e879f9' },
+    { offset: '100%', color: '#38bdf8' },
+  ],
+  'beam-grad-gold': [
+    { offset: '0%', color: '#fef08a' },
+    { offset: '50%', color: '#fbbf24' },
+    { offset: '100%', color: '#d97706' },
+  ],
+  'beam-grad-silver': [
+    { offset: '0%', color: '#ffffff' },
+    { offset: '50%', color: '#cbd5e1' },
+    { offset: '100%', color: '#94a3b8' },
+  ],
+};
+
 function AnimatedBeamEdge({
   id,
   sourceX,
@@ -30,38 +56,59 @@ function AnimatedBeamEdge({
   const glowColor = data?.glowColor || 'rgba(56, 189, 248, 0.85)';
   const animationDelay = data?.delay || '0s';
   const duration = data?.duration || '4.0s';
-  const strokeColor = data?.colorGradient ? `url(#${data.colorGradient})` : beamColor;
   const shadowFilter = data?.filter || `drop-shadow(0 0 4px ${beamColor}) drop-shadow(0 0 9px ${glowColor})`;
+
+  // ตรวจสอบและดึงข้อมูล Gradient
+  const gradientKey = data?.colorGradient;
+  const stops = gradientKey ? GRADIENT_DEFINITIONS[gradientKey] : null;
+
+  // รหัส Unique Gradient ID ประจำเส้น Edge นี้โดยเฉพาะ ป้องกัน ID ชนกันใน SVG DOM
+  const cleanId = String(id || 'edge').replace(/[^a-zA-Z0-9-_]/g, '_');
+  const uniqueGradId = stops ? `beam-grad-${cleanId}` : null;
+  const strokeColor = uniqueGradId ? `url(#${uniqueGradId})` : beamColor;
+
+  // คำนวณพิกัด userSpaceOnUse:
+  // แก้ไขข้อผิดพลาดของ SVG มาตรฐาน W3C ที่เมื่อเส้นเป็นแนวตั้งตรง (sourceX === targetX)
+  // bounding box width จะเป็น 0 ทำให้ linearGradient แบบ objectBoundingBox ไม่ถูกวาด (กลายเป็นเส้นโปร่งแสง)
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const isDirectVertical = Math.abs(dx) < 1;
+  const isDirectHorizontal = Math.abs(dy) < 1;
+
+  let gx1 = sourceX;
+  let gy1 = sourceY;
+  let gx2 = targetX;
+  let gy2 = targetY;
+
+  if (isDirectVertical) {
+    gx1 = sourceX;
+    gx2 = sourceX;
+    gy1 = sourceY;
+    gy2 = Math.abs(dy) < 1 ? sourceY + 20 : targetY;
+  } else if (isDirectHorizontal) {
+    gx1 = sourceX;
+    gx2 = Math.abs(dx) < 1 ? sourceX + 20 : targetX;
+    gy1 = sourceY;
+    gy2 = sourceY;
+  }
 
   return (
     <g className="animated-beam-group">
       <defs>
-        {/* ลำแสงสีรุ้ง Prismatic Rainbow สำหรับระดับ G1 / Legend */}
-        <linearGradient id="beam-grad-rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ff0080" />
-          <stop offset="25%" stopColor="#ff8c00" />
-          <stop offset="50%" stopColor="#ffd700" />
-          <stop offset="75%" stopColor="#00bfff" />
-          <stop offset="100%" stopColor="#a855f7" />
-        </linearGradient>
-        {/* ลำแสงสีเพชร Sparkling Diamond สำหรับระดับ G2 */}
-        <linearGradient id="beam-grad-diamond" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" />
-          <stop offset="50%" stopColor="#e879f9" />
-          <stop offset="100%" stopColor="#38bdf8" />
-        </linearGradient>
-        {/* ลำแสงสีทองคำแท้ 24K สำหรับระดับ G3 */}
-        <linearGradient id="beam-grad-gold" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fef08a" />
-          <stop offset="50%" stopColor="#fbbf24" />
-          <stop offset="100%" stopColor="#d97706" />
-        </linearGradient>
-        {/* ลำแสงสีเงินพรีเมียม สำหรับระดับ G4 */}
-        <linearGradient id="beam-grad-silver" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="50%" stopColor="#cbd5e1" />
-          <stop offset="100%" stopColor="#94a3b8" />
-        </linearGradient>
+        {stops && uniqueGradId && (
+          <linearGradient
+            id={uniqueGradId}
+            gradientUnits="userSpaceOnUse"
+            x1={gx1}
+            y1={gy1}
+            x2={gx2}
+            y2={gy2}
+          >
+            {stops.map((stop, index) => (
+              <stop key={index} offset={stop.offset} stopColor={stop.color} />
+            ))}
+          </linearGradient>
+        )}
       </defs>
 
       {/* ── 1. Base Static Track (เส้นทางหลัก คมชัด มินิมอล) ── */}
@@ -74,12 +121,12 @@ function AnimatedBeamEdge({
         className="beam-base-track"
       />
 
-      {/* ── 2. Outer Neon Aura Glow (แสดงเมื่อเปิดลำแสงเท่านั้น) ── */}
+      {/* ── 2. Outer Neon Aura Glow (แสดงเมื่อเปิดลำแสงเท่านั้น — ใช้ glowColor ป้องกันเรนเดอร์หลุด) ── */}
       {isEnabled && (
         <path
           d={edgePath}
           fill="none"
-          stroke={data?.colorGradient ? strokeColor : glowColor}
+          stroke={glowColor}
           strokeWidth={5}
           strokeLinecap="round"
           pathLength={100}
@@ -93,7 +140,7 @@ function AnimatedBeamEdge({
         />
       )}
 
-      {/* ── 3. High-Intensity Core Laser (แสดงเมื่อเปิดลำแสงเท่านั้น) ── */}
+      {/* ── 3. High-Intensity Core Laser (แสดงเมื่อเปิดลำแสงเท่านั้น — คมชัดทุกมุมมองแม้เป็นเส้นตรงแนวดิ่ง) ── */}
       {isEnabled && (
         <path
           d={edgePath}
