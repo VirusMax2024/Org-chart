@@ -22,13 +22,14 @@ function EmployeeCardNode({ data }) {
 
   return (
     <div
-      onClick={() => {
+      onClick={(e) => {
         if (!data?.isEditor && data?.onSelect) {
+          e.stopPropagation();
           data.onSelect(data);
         }
       }}
       style={{ position: 'relative', cursor: data?.isEditor ? 'grab' : 'pointer' }}
-      className={!data?.isEditor ? 'transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]' : ''}
+      className={!data?.isEditor ? 'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]' : ''}
     >
       {/* Connector Target (ด้านบน) — รับเส้นเชื่อมจากหัวหน้า */}
       {!isRoot && (

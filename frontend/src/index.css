@@ -111,6 +111,32 @@ html[lang="en"], html[data-lang="en"], body[data-lang="en"] {
   animation: fadeIn 0.4s ease-out forwards;
 }
 
+/* ─── Fast & Snappy Modal Animations (Ultra Smooth Instant Open) ─── */
+@keyframes modalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes modalOverlayFade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+.animate-modal-pop {
+  animation: modalPopIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-modal-overlay {
+  animation: modalOverlayFade 0.12s ease-out forwards;
+}
+
 /* ─── Employee Card ─────────────────────────────── */
 .employee-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;

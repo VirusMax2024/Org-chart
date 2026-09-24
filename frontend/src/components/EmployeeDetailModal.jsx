@@ -60,16 +60,18 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/45 animate-modal-overlay"
       onClick={onClose}
-      style={{ backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+      style={{ backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)' }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl border border-white/15 bg-slate-900 shadow-2xl overflow-hidden relative"
+        className="w-full max-w-lg rounded-3xl border border-white/20 shadow-2xl overflow-hidden relative animate-modal-pop"
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'linear-gradient(145deg, #0b1528 0%, #0f1d38 60%, #080f1e 100%)',
-          boxShadow: '0 25px 60px rgba(0,0,0,0.8), 0 0 40px rgba(37,99,235,0.15)',
+          background: 'linear-gradient(145deg, rgba(13, 23, 44, 0.94) 0%, rgba(18, 33, 64, 0.96) 100%)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 35px rgba(59,130,246,0.2)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
         {/* Top Decorative Header Accent */}
@@ -103,7 +105,7 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
 
         {/* Main Profile Info Section */}
         <div className="px-6 py-4 flex flex-col items-center text-center">
-          {/* Avatar with Glow and Rank Badge */}
+          {/* Avatar with Glow (G4 badge removed as requested by CEO MAC) */}
           <div className="relative mb-4">
             <div
               className="w-24 h-24 rounded-3xl overflow-hidden flex items-center justify-center shadow-2xl p-1"
@@ -133,20 +135,6 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
               >
                 {name.charAt(0).toUpperCase()}
               </div>
-            </div>
-
-            {/* Floating Rank Icon Badge */}
-            <div
-              className="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full text-[11px] font-black flex items-center gap-1 shadow-lg border"
-              style={{
-                backgroundColor: rankBadgeConfig.bg,
-                borderColor: rankBadgeConfig.border,
-                color: rankBadgeConfig.color,
-                boxShadow: `0 4px 12px ${rankBadgeConfig.color}50`,
-              }}
-            >
-              <RankIcon size={12} />
-              <span>{employee.rank || 'G'}</span>
             </div>
           </div>
 
@@ -191,7 +179,8 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
           {/* Contact Details */}
           <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2.5">
             <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <span>{t('tab_settings') || 'ຂໍ້ມູນຕິດຕໍ່ / ช่องทางติดต่อ'}</span>
+              <Phone size={12} className="text-blue-400" />
+              <span>{t('tab_contact') || 'ຂໍ້ມູນຕິດຕໍ່ / ข้อมูลติดต่อ'}</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
               {/* Phone */}
@@ -319,7 +308,7 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 bg-black/40 border-t border-white/10 flex items-center justify-end">
+        <div className="px-6 py-4 bg-slate-900/70 border-t border-white/10 flex items-center justify-end">
           <button
             type="button"
             onClick={onClose}
