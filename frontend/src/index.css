@@ -137,13 +137,13 @@ html[lang="en"], html[data-lang="en"], body[data-lang="en"] {
   animation: modalOverlayFade 0.12s ease-out forwards;
 }
 
-/* ─── Vercel / Next.js Style Animated Glowing Beams ─── */
+/* ─── EASY GOLD Style Animated Glowing Beams (ลำแสงสีทองวิ่งลงตามสายงาน) ─── */
 @keyframes beamTravelDown {
   0% {
-    stroke-dashoffset: 0;
+    stroke-dashoffset: 100;
   }
   100% {
-    stroke-dashoffset: 100;
+    stroke-dashoffset: 0;
   }
 }
 

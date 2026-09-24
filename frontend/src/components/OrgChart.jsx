@@ -75,43 +75,43 @@ const edgeTypes = {
   animatedBeam: AnimatedBeamEdge,
 };
 
-// ─── คำนวณสีและความเร็วของ Animated Beam ตามระดับตำแหน่ง (Rank Levels) สไตล์ Vercel ───
+// ─── คำนวณสีทองและความเร็วของ Animated Beam ตามเอกลักษณ์แบรนด์ EASY GOLD ───
 function getBeamConfig(rank, edgeIndex) {
   const r = String(rank || '').toUpperCase();
   const staggerDelay = `${((edgeIndex * 0.35) % 2).toFixed(2)}s`;
 
-  // G1: Legend / Top Leadership — Vibrant Pink / Rose Glow Pulse
+  // G1: ระดับสูงสุด / ผู้บริหารสูงสุด — ลำแสงทองคำบริสุทธิ์ 24K สว่างเรืองรองสูงสุด (Imperial 24K Gold)
   if (r === 'G1') {
     return {
-      color: '#f43f5e',
-      glowColor: 'rgba(244, 63, 94, 0.85)',
+      color: '#fef08a',
+      glowColor: 'rgba(251, 191, 36, 0.95)',
       duration: '2.2s',
       delay: staggerDelay,
     };
   }
-  // G2: Executive & C-Suite — Next.js Cyan Beam Pulse
+  // G2: ผู้บริหารระดับสูง (C-Suite) — ลำแสงทองแชมเปญเปล่งประกาย (Champagne Gold)
   if (r === 'G2') {
     return {
-      color: '#38bdf8',
-      glowColor: 'rgba(56, 189, 248, 0.85)',
-      duration: '2.5s',
+      color: '#fbbf24',
+      glowColor: 'rgba(245, 158, 11, 0.85)',
+      duration: '2.4s',
       delay: staggerDelay,
     };
   }
-  // G3: Manager & Head — Warm Amber / Solar Gold Pulse
+  // G3: ผู้จัดการและหัวหน้าสายงาน — ลำแสงทองอำพันอบอุ่นหนักแน่น (Warm Amber Gold)
   if (r === 'G3') {
     return {
-      color: '#fbbf24',
-      glowColor: 'rgba(251, 191, 36, 0.85)',
-      duration: '2.8s',
+      color: '#f59e0b',
+      glowColor: 'rgba(217, 119, 6, 0.85)',
+      duration: '2.6s',
       delay: staggerDelay,
     };
   }
-  // G4 / G5 / General Staff — High-Tech Electric Blue Pulse
+  // G4 / G5 / พนักงานทั่วไป — ลำแสงทองนีออนคลาสสิก คมชัดสง่างาม (Classic Radiant Gold)
   return {
-    color: '#60a5fa',
-    glowColor: 'rgba(96, 165, 250, 0.85)',
-    duration: '2.6s',
+    color: '#fbbf24',
+    glowColor: 'rgba(245, 158, 11, 0.80)',
+    duration: '2.5s',
     delay: staggerDelay,
   };
 }

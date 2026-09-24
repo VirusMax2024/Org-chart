@@ -24,19 +24,19 @@ function AnimatedBeamEdge({
     borderRadius: 18,
   });
 
-  const beamColor = data?.color || '#38bdf8';
-  const glowColor = data?.glowColor || 'rgba(56, 189, 248, 0.75)';
+  const beamColor = data?.color || '#fbbf24';
+  const glowColor = data?.glowColor || 'rgba(251, 191, 36, 0.85)';
   const animationDelay = data?.delay || '0s';
-  const duration = data?.duration || '2.6s';
+  const duration = data?.duration || '2.5s';
 
   return (
     <g className="animated-beam-group">
-      {/* ── 1. Base Static Track (เส้นไกด์พื้นหลังสีจาง คมชัด สะอาดตา สไตล์ Vercel) ── */}
+      {/* ── 1. Base Static Track (เส้นไกด์สีทองบางเฉียบ คมชัด หรูหรา) ── */}
       <path
         id={id}
         d={edgePath}
         fill="none"
-        stroke="rgba(255, 255, 255, 0.12)"
+        stroke="rgba(245, 158, 11, 0.18)"
         strokeWidth={2}
         className="beam-base-track"
       />
