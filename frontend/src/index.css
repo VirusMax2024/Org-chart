@@ -137,28 +137,42 @@ html[lang="en"], html[data-lang="en"], body[data-lang="en"] {
   animation: modalOverlayFade 0.12s ease-out forwards;
 }
 
-/* ─── EASY GOLD Style Animated Glowing Beams (ลำแสงสีทองวิ่งลงตามสายงาน) ─── */
-@keyframes beamTravelDown {
+/* ─── EASY GOLD Style Animated Glowing Beams (ลำแสงสีฟ้านีออนวิ่งลงตามสายงานแบบ Waterfall) ─── */
+@keyframes beamTravelCascade {
   0% {
     stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  2% {
+    opacity: 1;
+  }
+  19% {
+    opacity: 1;
+  }
+  22% {
+    stroke-dashoffset: 0;
+    opacity: 0;
   }
   100% {
     stroke-dashoffset: 0;
+    opacity: 0;
   }
 }
 
 .beam-glow-path {
-  animation-name: beamTravelDown;
+  animation-name: beamTravelCascade;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  will-change: stroke-dashoffset;
+  animation-fill-mode: both;
+  will-change: stroke-dashoffset, opacity;
 }
 
 .beam-core-laser {
-  animation-name: beamTravelDown;
+  animation-name: beamTravelCascade;
   animation-timing-function: linear;
   animation-iteration-count: infinite;
-  will-change: stroke-dashoffset;
+  animation-fill-mode: both;
+  will-change: stroke-dashoffset, opacity;
 }
 
 /* ─── Employee Card ─────────────────────────────── */

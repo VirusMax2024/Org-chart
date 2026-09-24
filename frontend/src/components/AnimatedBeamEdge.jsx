@@ -24,24 +24,24 @@ function AnimatedBeamEdge({
     borderRadius: 18,
   });
 
-  const beamColor = data?.color || '#fbbf24';
-  const glowColor = data?.glowColor || 'rgba(251, 191, 36, 0.85)';
+  const beamColor = data?.color || '#38bdf8';
+  const glowColor = data?.glowColor || 'rgba(56, 189, 248, 0.85)';
   const animationDelay = data?.delay || '0s';
-  const duration = data?.duration || '2.5s';
+  const duration = data?.duration || '4.0s';
 
   return (
     <g className="animated-beam-group">
-      {/* ── 1. Base Static Track (เส้นไกด์สีทองบางเฉียบ คมชัด หรูหรา) ── */}
+      {/* ── 1. Base Static Track (เส้นไกด์สีฟ้าบางเฉียบ คมชัด ไฮเทค) ── */}
       <path
         id={id}
         d={edgePath}
         fill="none"
-        stroke="rgba(245, 158, 11, 0.18)"
+        stroke="rgba(56, 189, 248, 0.20)"
         strokeWidth={2}
         className="beam-base-track"
       />
 
-      {/* ── 2. Outer Neon Aura Glow (แสงเรืองฟุ้งรอบตัวลำแสง) ── */}
+      {/* ── 2. Outer Neon Aura Glow (แสงเรืองฟุ้งสีฟ้ารอบตัวลำแสง) ── */}
       <path
         d={edgePath}
         fill="none"
@@ -55,11 +55,10 @@ function AnimatedBeamEdge({
           animationDuration: duration,
           animationDelay,
           filter: 'blur(3px)',
-          opacity: 0.85,
         }}
       />
 
-      {/* ── 3. High-Intensity Core Laser (แกนลำแสงคมชัดวิ่งตามเส้นทางจากบนลงล่าง) ── */}
+      {/* ── 3. High-Intensity Core Laser (แกนลำแสงสีฟ้าคมชัดวิ่งตามเส้นทางจากบนลงล่าง) ── */}
       <path
         d={edgePath}
         fill="none"

@@ -37,12 +37,12 @@ const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
           type="target"
           position={Position.Top}
           style={{
-            background: '#3b82f6',
+            background: '#38bdf8',
             width: 10,
             height: 10,
             border: '2px solid #0f172a',
             top: -5,
-            boxShadow: '0 0 6px rgba(59, 130, 246, 0.8)',
+            boxShadow: '0 0 6px rgba(56, 189, 248, 0.85)',
           }}
         />
       )}
@@ -55,12 +55,12 @@ const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
         type="source"
         position={Position.Bottom}
         style={{
-          background: '#3b82f6',
+          background: '#38bdf8',
           width: 10,
           height: 10,
           border: '2px solid #0f172a',
           bottom: -5,
-          boxShadow: '0 0 6px rgba(59, 130, 246, 0.8)',
+          boxShadow: '0 0 6px rgba(56, 189, 248, 0.85)',
         }}
       />
     </div>
@@ -75,44 +75,45 @@ const edgeTypes = {
   animatedBeam: AnimatedBeamEdge,
 };
 
-// ─── คำนวณสีทองและความเร็วของ Animated Beam ตามเอกลักษณ์แบรนด์ EASY GOLD ───
-function getBeamConfig(rank, edgeIndex) {
+// ─── คำนวณสีฟ้านีออนและสเต็ปเวลาแบบ Waterfall ตามสายบังคับบัญชา ───
+function getBeamConfig(rank, depth = 0, totalDuration = 4.0) {
   const r = String(rank || '').toUpperCase();
-  const staggerDelay = `${((edgeIndex * 0.35) % 2).toFixed(2)}s`;
+  const delay = `${(depth * 0.80).toFixed(2)}s`;
+  const duration = `${totalDuration.toFixed(2)}s`;
 
-  // G1: ระดับสูงสุด / ผู้บริหารสูงสุด — ลำแสงทองคำบริสุทธิ์ 24K สว่างเรืองรองสูงสุด (Imperial 24K Gold)
+  // G1: ระดับสูงสุด / ผู้บริหารสูงสุด — ลำแสงสีฟ้าครามสว่างประกายสูงสุด (Cyan Aqua Neon)
   if (r === 'G1') {
     return {
-      color: '#fef08a',
-      glowColor: 'rgba(251, 191, 36, 0.95)',
-      duration: '2.2s',
-      delay: staggerDelay,
+      color: '#38bdf8',
+      glowColor: 'rgba(56, 189, 248, 0.95)',
+      duration,
+      delay,
     };
   }
-  // G2: ผู้บริหารระดับสูง (C-Suite) — ลำแสงทองแชมเปญเปล่งประกาย (Champagne Gold)
+  // G2: ผู้บริหารระดับสูง (C-Suite) — ลำแสงสีฟ้าสดใสทรงพลัง (Sky Blue)
   if (r === 'G2') {
     return {
-      color: '#fbbf24',
-      glowColor: 'rgba(245, 158, 11, 0.85)',
-      duration: '2.4s',
-      delay: staggerDelay,
+      color: '#60a5fa',
+      glowColor: 'rgba(96, 165, 250, 0.90)',
+      duration,
+      delay,
     };
   }
-  // G3: ผู้จัดการและหัวหน้าสายงาน — ลำแสงทองอำพันอบอุ่นหนักแน่น (Warm Amber Gold)
+  // G3: ผู้จัดการและหัวหน้าสายงาน — ลำแสงสีฟ้าเข้มคมชัด (Electric Deep Sky)
   if (r === 'G3') {
     return {
-      color: '#f59e0b',
-      glowColor: 'rgba(217, 119, 6, 0.85)',
-      duration: '2.6s',
-      delay: staggerDelay,
+      color: '#38bdf8',
+      glowColor: 'rgba(56, 189, 248, 0.85)',
+      duration,
+      delay,
     };
   }
-  // G4 / G5 / พนักงานทั่วไป — ลำแสงทองนีออนคลาสสิก คมชัดสง่างาม (Classic Radiant Gold)
+  // G4 / G5 / พนักงานทั่วไป — ลำแสงสีฟ้านีออนโมเดิร์น (Classic Radiant Cyan)
   return {
-    color: '#fbbf24',
-    glowColor: 'rgba(245, 158, 11, 0.80)',
-    duration: '2.5s',
-    delay: staggerDelay,
+    color: '#38bdf8',
+    glowColor: 'rgba(56, 189, 248, 0.80)',
+    duration,
+    delay,
   };
 }
 
@@ -233,8 +234,30 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
   const resultNodes = [];
   const resultEdges = [];
   const assignedSet = new Set();
+  let maxTreeDepth = 0;
 
-  function assignPositions(node, x, y, isRoot = false, visited = new Set()) {
+  // คำนวณความลึกสูงสุดของสายงาน (Tree Depth) เพื่อกะจังหวะรอบ Waterfall Pulse ให้สมบูรณ์แบบ
+  function findMaxDepth(node, currentDepth = 0, seen = new Set()) {
+    if (!node || seen.has(node.id)) return currentDepth;
+    seen.add(node.id);
+    let maxD = currentDepth;
+    if (node.children && node.children.length > 0) {
+      node.children.forEach((child) => {
+        const d = findMaxDepth(child, currentDepth + 1, seen);
+        if (d > maxD) maxD = d;
+      });
+    }
+    return maxD;
+  }
+
+  roots.forEach((root) => {
+    const d = findMaxDepth(root, 0, new Set());
+    if (d > maxTreeDepth) maxTreeDepth = d;
+  });
+
+  const totalCycleDuration = Math.max(3.6, (maxTreeDepth + 1) * 0.85);
+
+  function assignPositions(node, x, y, isRoot = false, visited = new Set(), depth = 0) {
     if (visited.has(node.id) || assignedSet.has(node.id)) return;
     visited.add(node.id);
     assignedSet.add(node.id);
@@ -266,7 +289,7 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
           // จัดกึ่งกลางลูกน้องให้อยู่ตรงแนวเดียวกับหัวหน้า
           const childX = x + (subtreeWidth - childSubtreeWidth) / 2;
 
-          const beam = getBeamConfig(node.rank, resultEdges.length);
+          const beam = getBeamConfig(node.rank, depth, totalCycleDuration);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
@@ -286,7 +309,7 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
             },
           });
 
-          assignPositions(child, childX, currentChildY, false, new Set(visited));
+          assignPositions(child, childX, currentChildY, false, new Set(visited), depth + 1);
 
           // คำนวณระยะ Y ของลูกคนถัดไปตามความสูง subtree ของลูกคนนี้
           const childHeight = getSubtreeHeight(child);
@@ -298,7 +321,7 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
         const childY = nodeY + CARD_HEIGHT + V_GAP;
 
         node.children.forEach((child) => {
-          const beam = getBeamConfig(node.rank, resultEdges.length);
+          const beam = getBeamConfig(node.rank, depth, totalCycleDuration);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
@@ -319,7 +342,7 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
           });
 
           const childWidth = getSubtreeWidth(child);
-          assignPositions(child, childX, childY, false, new Set(visited));
+          assignPositions(child, childX, childY, false, new Set(visited), depth + 1);
           childX += childWidth + H_GAP;
         });
       }
@@ -329,7 +352,7 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
   let currentX = 0;
   roots.forEach((root) => {
     const rootWidth = getSubtreeWidth(root);
-    assignPositions(root, currentX, 0, true);
+    assignPositions(root, currentX, 0, true, new Set(), 0);
     currentX += rootWidth + H_GAP * 2;
   });
 
