@@ -240,7 +240,6 @@ const EmployeeCard = memo((props) => {
           color: levelStyle.badgeColor,
           border: `1px solid ${levelStyle.badgeBorder}`,
           boxShadow: levelStyle.badgeShadow,
-          backdropFilter: 'blur(8px)',
           // LEGEND level: animate gradient
           ...(currentLevel === LEVEL_TYPES.LEGEND ? {
             background: 'linear-gradient(135deg, rgba(255,0,128,0.35), rgba(0,191,255,0.35), rgba(168,85,247,0.35))',

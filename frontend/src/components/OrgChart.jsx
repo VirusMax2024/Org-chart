@@ -16,8 +16,8 @@ import EmployeeCard from './EmployeeCard';
 import ExportModal from './ExportModal';
 import EmployeeDetailModal from './EmployeeDetailModal';
 
-// ─── Custom Node Component พร้อม React Flow Handles ─────────
-function EmployeeCardNode({ data }) {
+// ─── Custom Node Component พร้อม React Flow Handles (Memoized for max performance) ───
+const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
   const isRoot = Boolean(data?.isRoot);
 
   return (
@@ -29,7 +29,6 @@ function EmployeeCardNode({ data }) {
         }
       }}
       style={{ position: 'relative', cursor: data?.isEditor ? 'grab' : 'pointer' }}
-      className={!data?.isEditor ? 'transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]' : ''}
     >
       {/* Connector Target (ด้านบน) — รับเส้นเชื่อมจากหัวหน้า */}
       {!isRoot && (
@@ -65,7 +64,7 @@ function EmployeeCardNode({ data }) {
       />
     </div>
   );
-}
+});
 
 const nodeTypes = {
   employeeCard: EmployeeCardNode,
@@ -428,13 +427,13 @@ export default function OrgChart({
         fitViewOptions={{ padding: 0.25 }}
         minZoom={0.2}
         maxZoom={1.6}
-        nodesDraggable={isEditor && !selectedEmployee}
+        nodesDraggable={isEditor}
         nodesConnectable={false}
-        elementsSelectable={isEditor && !selectedEmployee}
-        zoomOnScroll={!selectedEmployee}
+        elementsSelectable={isEditor}
+        zoomOnScroll={true}
         panOnScroll={false}
-        panOnDrag={isEditor ? true : !selectedEmployee}
-        preventScrolling={Boolean(selectedEmployee)}
+        panOnDrag={true}
+        preventScrolling={false}
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
       >

@@ -20,15 +20,6 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // ล็อค Scroll พื้นหลังเมื่อ Modal เปิดอยู่ เพื่อประสิทธิภาพและความลื่นไหลสูงสุด
-  useEffect(() => {
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, []);
-
   if (!employee) return null;
 
   // หาข้อมูลหัวหน้า (Supervisor)
@@ -69,18 +60,18 @@ export default function EmployeeDetailModal({ employee, allEmployees = [], depar
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-[3px] animate-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70"
       onClick={onClose}
       onWheel={(e) => e.stopPropagation()}
       style={{ overscrollBehavior: 'contain' }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl border border-white/20 shadow-2xl overflow-hidden relative animate-modal-pop"
+        className="w-full max-w-lg rounded-3xl border border-white/20 shadow-2xl overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
         onWheel={(e) => e.stopPropagation()}
         style={{
           background: 'linear-gradient(145deg, #0d172c 0%, #11203d 100%)',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(59,130,246,0.15)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.7), 0 0 30px rgba(59,130,246,0.15)',
         }}
       >
         {/* Top Decorative Header Accent */}
