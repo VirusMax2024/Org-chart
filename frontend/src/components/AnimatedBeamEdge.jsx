@@ -29,6 +29,7 @@ function AnimatedBeamEdge({
   const beamColor = data?.color || '#38bdf8';
   const glowColor = data?.glowColor || 'rgba(56, 189, 248, 0.85)';
   const animationDelay = data?.delay || '0s';
+  const duration = data?.duration || '4.0s';
   const strokeColor = data?.colorGradient ? `url(#${data.colorGradient})` : beamColor;
   const shadowFilter = data?.filter || `drop-shadow(0 0 4px ${beamColor}) drop-shadow(0 0 9px ${glowColor})`;
 
