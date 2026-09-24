@@ -137,6 +137,30 @@ html[lang="en"], html[data-lang="en"], body[data-lang="en"] {
   animation: modalOverlayFade 0.12s ease-out forwards;
 }
 
+/* ─── Vercel / Next.js Style Animated Glowing Beams ─── */
+@keyframes beamTravelDown {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 100;
+  }
+}
+
+.beam-glow-path {
+  animation-name: beamTravelDown;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: stroke-dashoffset;
+}
+
+.beam-core-laser {
+  animation-name: beamTravelDown;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: stroke-dashoffset;
+}
+
 /* ─── Employee Card ─────────────────────────────── */
 .employee-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;

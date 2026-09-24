@@ -15,6 +15,7 @@ import { Download, Plus, Minus, Maximize2, Users, Building2, Crown, Monitor } fr
 import EmployeeCard from './EmployeeCard';
 import ExportModal from './ExportModal';
 import EmployeeDetailModal from './EmployeeDetailModal';
+import AnimatedBeamEdge from './AnimatedBeamEdge';
 
 // ─── Custom Node Component พร้อม React Flow Handles (Memoized for max performance) ───
 const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
@@ -69,6 +70,51 @@ const EmployeeCardNode = React.memo(function EmployeeCardNode({ data }) {
 const nodeTypes = {
   employeeCard: EmployeeCardNode,
 };
+
+const edgeTypes = {
+  animatedBeam: AnimatedBeamEdge,
+};
+
+// ─── คำนวณสีและความเร็วของ Animated Beam ตามระดับตำแหน่ง (Rank Levels) สไตล์ Vercel ───
+function getBeamConfig(rank, edgeIndex) {
+  const r = String(rank || '').toUpperCase();
+  const staggerDelay = `${((edgeIndex * 0.35) % 2).toFixed(2)}s`;
+
+  // G1: Legend / Top Leadership — Vibrant Pink / Rose Glow Pulse
+  if (r === 'G1') {
+    return {
+      color: '#f43f5e',
+      glowColor: 'rgba(244, 63, 94, 0.85)',
+      duration: '2.2s',
+      delay: staggerDelay,
+    };
+  }
+  // G2: Executive & C-Suite — Next.js Cyan Beam Pulse
+  if (r === 'G2') {
+    return {
+      color: '#38bdf8',
+      glowColor: 'rgba(56, 189, 248, 0.85)',
+      duration: '2.5s',
+      delay: staggerDelay,
+    };
+  }
+  // G3: Manager & Head — Warm Amber / Solar Gold Pulse
+  if (r === 'G3') {
+    return {
+      color: '#fbbf24',
+      glowColor: 'rgba(251, 191, 36, 0.85)',
+      duration: '2.8s',
+      delay: staggerDelay,
+    };
+  }
+  // G4 / G5 / General Staff — High-Tech Electric Blue Pulse
+  return {
+    color: '#60a5fa',
+    glowColor: 'rgba(96, 165, 250, 0.85)',
+    duration: '2.6s',
+    delay: staggerDelay,
+  };
+}
 
 // ─── Layout Constants ─────────────────────────────────────────
 const CARD_WIDTH  = 420;  // ความกว้าง EmployeeCard (node variant)
@@ -220,19 +266,21 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
           // จัดกึ่งกลางลูกน้องให้อยู่ตรงแนวเดียวกับหัวหน้า
           const childX = x + (subtreeWidth - childSubtreeWidth) / 2;
 
+          const beam = getBeamConfig(node.rank, resultEdges.length);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
             target: String(child.id),
-            type: 'smoothstep',
-            pathOptions: { borderRadius: 16 },
-            style: {
-              stroke: 'rgba(96, 165, 250, 0.75)',
-              strokeWidth: 2.2,
+            type: 'animatedBeam',
+            data: {
+              color: beam.color,
+              glowColor: beam.glowColor,
+              duration: beam.duration,
+              delay: beam.delay,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: '#60a5fa',
+              color: beam.color,
               width: 12,
               height: 12,
             },
@@ -250,19 +298,21 @@ function computeLayout(employees, isEditor = false, onSelect = null) {
         const childY = nodeY + CARD_HEIGHT + V_GAP;
 
         node.children.forEach((child) => {
+          const beam = getBeamConfig(node.rank, resultEdges.length);
           resultEdges.push({
             id: `e-${node.id}-${child.id}`,
             source: String(node.id),
             target: String(child.id),
-            type: 'smoothstep',
-            pathOptions: { borderRadius: 16 },
-            style: {
-              stroke: 'rgba(96, 165, 250, 0.75)',
-              strokeWidth: 2.2,
+            type: 'animatedBeam',
+            data: {
+              color: beam.color,
+              glowColor: beam.glowColor,
+              duration: beam.duration,
+              delay: beam.delay,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: '#60a5fa',
+              color: beam.color,
               width: 12,
               height: 12,
             },
@@ -422,6 +472,7 @@ export default function OrgChart({
         onEdgesChange={onEdgesChange}
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onInit={onInit}
         fitView
         fitViewOptions={{ padding: 0.25 }}
